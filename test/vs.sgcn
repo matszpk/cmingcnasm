@@ -1,0 +1,9 @@
+buffer_load_format_xyzw idxen=1 soffset=0 vdata=v1
+s_waitcnt
+buffer_load_format_xyzw idxen=1 soffset=0 srsrc=s4 vdata=v5
+s_waitcnt
+export en=0b1111 done=1 tgt=pos0 vsrc0=v1 vsrc1=v2 vsrc2=v3 vsrc3=v4
+s_waitcnt
+export en=0b1111 tgt=param0 vsrc0=v5 vsrc1=v6 vsrc2=v7 vsrc3=v8
+s_waitcnt
+s_endpgm

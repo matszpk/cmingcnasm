@@ -1,0 +1,13 @@
+v_mov_b32 src0=1.0 vdst=v0
+s_waitcnt
+v_mov_b32 src0=1.0 vdst=v1
+s_waitcnt
+v_mov_b32 src0=1.0 vdst=v2
+s_waitcnt
+v_mov_b32 src0=1.0 vdst=v3
+s_waitcnt
+v_cvt_pkrtz_f16_f32 vdst=v0 vsrc1=v1 src0=v0
+v_cvt_pkrtz_f16_f32 vdst=v1 vsrc1=v3 src0=v2
+export vm=1 done=1 compr=1 en=0b1111 vsrc3=v1 vsrc2=v0 vsrc1=v1 vsrc0=v0
+s_waitcnt
+s_endpgm

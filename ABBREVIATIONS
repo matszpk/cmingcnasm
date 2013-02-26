@@ -1,0 +1,44 @@
+asm    assembler
+bgcn   binary gcn, machine code file for gcn file extension
+c(s)   char(s)
+chk    check
+ctx    context
+cvt    convert
+def    definition
+dis    disassembler
+ds     data share
+e      end
+exp    export
+f(s)   field(s)
+flg    flag
+i(s)   instruction(s)
+id     identification
+idx    index
+inst   instruction
+kw     keyword
+l      line
+le     little endian
+m      machine
+max    maximum
+mimg   memory image
+msg    message
+mtbuf  memory type buffer
+mubuf  memory untyped buffer
+p      pointer (usually current pointer)
+pp     preprocessor
+s      start
+scc    scalar condition code
+sgcn   source gcn, source code file for gcn assembly file extension
+sgpr   scalar general purpose register
+smrd   scalar memory read
+sop    scalar operation
+sopc   scalar operation with Comparison
+sopk   scalar operation with Konstant
+sopp   scalar operation with sPecial operation
+src    source
+sz     size
+val    value
+vgpr   vector general purpose register
+vintrp vector interpolation
+vop    vector operation
+vopc   vector operation vith Comparison

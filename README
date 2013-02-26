@@ -1,0 +1,5 @@
+This is cmingcnasm: C language MINimal GCN (Graphic Core Next) ASseMbler.
+
+Configure in conf.mk, then 'make all'
+
+**Keep a eye an ABBREVIATIONS if you want to understand the code**

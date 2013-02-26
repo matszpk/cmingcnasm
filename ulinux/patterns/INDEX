@@ -1,0 +1,26 @@
+o args_env
+  use of command line arguments and environment variables
+
+o dir_parse
+  parsing members of a directory and recurse
+
+o epoll
+  use of epoll with signalfd
+
+o input
+  o evdev
+    deal with evdev input devices
+
+o insmod
+  load and init a kernel module
+
+o network_server
+  o pre-fork_socket_unix_tcp
+    a TCP/IPv4 network server with pre-fork for connexion processing. Connexion
+    sockets are passed using unix sockets.
+
+o thread
+  create a thread
+
+o uevents_monitor
+  monitor uevents from the kernel
