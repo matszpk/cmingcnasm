@@ -8,8 +8,8 @@
 //******************************************************************************
 #define CMINGCNASM_ERR      -1
 #define CMINGCNASM_MSGS_ERR -2//something went wrong with the message system
-k_s8 cmingcnasm_asm(k_u8 *src,//(in)pointer on utf-8 source
-                    k_s32 src_sz,//(in)source size in bytes
+k_s8 cmingcnasm_asm(k_u8 *src,//(in)pointer on utf-8 source code
+                    k_s32 src_sz,//(in)source code size in bytes
                     k_u8  *src_pathname_default,//(in)default source pathname
                     k_s32 m_sz_max,//(in)maximum size for machine code buffer
                     void **m,//(out)machine code buffer
