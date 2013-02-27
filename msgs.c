@@ -26,8 +26,9 @@
 //private
 //------------------------------------------------------------------------------
 #include "msgs.h"
-#include "cmingcnasm.h"
 //------------------------------------------------------------------------------
+
+#define CMINGCN_MSGS_ERR -2//XXX:also defined in public headers
 
 static k_u8 grow(struct msgs_ctx *msgs,k_s32 len)
 {
@@ -38,16 +39,16 @@ static k_u8 grow(struct msgs_ctx *msgs,k_s32 len)
     addr=sysc(mmap,6,0,len,K_PROT_READ|K_PROT_WRITE,
                                             K_MAP_PRIVATE|K_MAP_ANONYMOUS,-1,0);
     if(K_ISERR(addr)){
-      r=CMINGCNASM_MSGS_ERR;goto exit;
+      r=CMINGCN_MSGS_ERR;goto exit;
     }
   }else{//remapping
     if(*msgs->sz+len>msgs->sz_max){
-      r=CMINGCNASM_MSGS_ERR;goto exit;     
+      r=CMINGCN_MSGS_ERR;goto exit;     
     }
 
     addr=sysc(mremap,5,*msgs->msgs,*msgs->sz,*msgs->sz+len,K_MREMAP_MAYMOVE,0);
     if(K_ISERR(addr)){
-      r=CMINGCNASM_MSGS_ERR;goto exit;
+      r=CMINGCN_MSGS_ERR;goto exit;
     }
   }
 
@@ -66,7 +67,7 @@ k_s8 msg(struct msgs_ctx *msgs,k_u8 *fmt,...)
   va_start(args,fmt);
   k_l len=u_a_vsnprintf(0,0,fmt,args);//compute needed space
   va_end(args);
-  if(len<0) r=CMINGCNASM_MSGS_ERR;
+  if(len<0) r=CMINGCN_MSGS_ERR;
   else{
     k_s32 old_sz=*msgs->sz;
     r=grow(msgs,len+1);
@@ -75,7 +76,7 @@ k_s8 msg(struct msgs_ctx *msgs,k_u8 *fmt,...)
       k_s32 shift=old_sz?1:0;
       len=u_a_vsnprintf(*msgs->msgs+old_sz-shift,len+1,fmt,args);
       va_end(args);
-      if(len<0) r=CMINGCNASM_MSGS_ERR;
+      if(len<0) r=CMINGCN_MSGS_ERR;
     }
   }
   return r;

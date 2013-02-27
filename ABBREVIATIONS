@@ -1,5 +1,6 @@
 asm    assembler
 bgcn   binary gcn, machine code file for gcn file extension
+buf    buffer
 c(s)   char(s)
 chk    check
 ctx    context

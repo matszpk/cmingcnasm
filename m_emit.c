@@ -203,7 +203,7 @@ static k_s8 mubuf(struct i *i,k_s32 m_sz_max,void **m,k_s32 *m_sz,
   f=f_get(i,F_LDS);
   if(f) m_i|=(f->val&1)<<16;
 
-  m_i|=(i->map->op_base&0x7f)<<18;
+  m_i|=((i->map->op_base+fmt_op_offset(i->map->fmts,FMT_MUBUF))&0x7f)<<18;
 
   m_i|=(k_u64)0b111000<<26;
 
@@ -347,7 +347,7 @@ static k_s8 s_waitcnt(struct i *i,k_s32 m_sz_max,void **m,k_s32 *m_sz,
     m_i|=(f->val&0x1f)<<8;
   }
 
-  m_i|=(i->map->op_base&0x7f)<<16;
+  m_i|=((i->map->op_base+fmt_op_offset(i->map->fmts,FMT_SOPP))&0x7f)<<16;
 
   m_i|=(k_u32)0b101111111<<23;
 
@@ -374,7 +374,7 @@ static k_s8 s_endpgm(struct i *i,k_s32 m_sz_max,void **m,k_s32 *m_sz,
   }
 
   k_u32 m_i=0;
-  m_i|=(i->map->op_base&0x7f)<<16;
+  m_i|=((i->map->op_base+fmt_op_offset(i->map->fmts,FMT_SOPP))&0x7f)<<16;
   m_i|=(k_u32)0b101111111<<23;
 
   r=emit_32(u_cpu2le32(m_i),m_sz_max,m,m_sz,msgs);
@@ -577,8 +577,6 @@ static k_s8 vop3a_fs_chk(struct i *i,struct msgs_ctx *msgs)
   return r;
 }
 
-#define VOP3A_VOP1_OFFSET 384
-#define VOP3A_VOP2_OFFSET 256
 static k_s8 vop3a(struct i *i,k_s32 m_sz_max,void **m,k_s32 *m_sz,
                                                           struct msgs_ctx *msgs)
 {
@@ -602,10 +600,7 @@ static k_s8 vop3a(struct i *i,k_s32 m_sz_max,void **m,k_s32 *m_sz,
   f=f_get(i,F_CLAMP);
   if(f) m_i|=(f->val&1)<<11;
 
-  k_u16 op=i->map->op_base;
-  if(i->map->fmts==(BIT(FMT_VOP1)|BIT(FMT_VOP3A))) op+=VOP3A_VOP1_OFFSET;
-  if(i->map->fmts==(BIT(FMT_VOP2)|BIT(FMT_VOP3A))) op+=VOP3A_VOP1_OFFSET;
-  m_i|=(op&0x1ff)<<17;
+  m_i|=((i->map->op_base+fmt_op_offset(i->map->fmts,FMT_VOP3A))&0x1ff)<<17;
 
   m_i|=(k_u64)0b110100<<26;
 
@@ -686,7 +681,7 @@ static k_s8 vop1(struct i *i,k_s32 m_sz_max,void **m,k_s32 *m_sz,
     m_i|=f->val&0x1ff;
   }
 
-  m_i|=(i->map->op_base&0xff)<<9;
+  m_i|=((i->map->op_base+fmt_op_offset(i->map->fmts,FMT_VOP1))&0xff)<<9;
 
   f=f_get(i,F_VDST);
   if(f) m_i|=(f->val&0xff)<<17;
@@ -750,7 +745,7 @@ static k_s8 vop2(struct i *i,k_s32 m_sz_max,void **m,k_s32 *m_sz,
   f=f_get(i,F_VDST);
   if(f) m_i|=(f->val&0xff)<<17;
 
-  m_i|=(i->map->op_base&0x3f)<<25;
+  m_i|=((i->map->op_base+fmt_op_offset(i->map->fmts,FMT_VOP2))&0x3f)<<25;
 
   m_i|=(k_u32)0b0<<31;
 
@@ -760,7 +755,7 @@ exit:
   return r;
 }
 #undef MSG
-//end of vop1
+//end of vop2
 //==============================================================================
 
 //==============================================================================

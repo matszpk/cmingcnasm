@@ -6,8 +6,8 @@
 //author:Sylvain BERTRAND <sylvain.bertrand AT gmail dot com>
 //                        <digital.ragnarok AT gmail dot com>
 //******************************************************************************
-#define CMINGCNASM_ERR      -1
-#define CMINGCNASM_MSGS_ERR -2//something went wrong with the message system
+#define CMINGCNASM_ERR   -1
+#define CMINGCN_MSGS_ERR -2//something went wrong with the message system
 k_s8 cmingcnasm_asm(k_u8 *src,//(in)pointer on utf-8 source code
                     k_s32 src_sz,//(in)source code size in bytes
                     k_u8  *src_pathname_default,//(in)default source pathname

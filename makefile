@@ -37,6 +37,7 @@ $(CMINGCNASM_ULINUX_OBJS)
 LIBCMINGCNDIS_ULINUX_OBJS=
 
 LIBCMINGCNDIS_OBJS=\
+$(OBJ_DIR)/msgs.o \
 $(OBJ_DIR)/libcmingcndis.o \
 $(LIBCMINGCNDIS_ULINUX_OBJS)
 
@@ -144,7 +145,7 @@ $(OBJ_DIR)/cmingcnasm.o:$(CPP_DIR)/cmingcnasm.c
 $(CPP_DIR)/libcmingcndis.c:libcmingcndis.c 
 	$(CPP) $(CPPFLAGS) $< -o $@
 $(OBJ_DIR)/libcmingcndis.o:$(CPP_DIR)/libcmingcndis.c
-	$(CC) -c $(CFLAGS) $< -o $@
+	$(CC) -fPIC -c $(CFLAGS) $< -o $@
 #*******************************************************************************
 
 #*******************************************************************************

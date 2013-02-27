@@ -185,7 +185,7 @@ void start(k_i argc, k_u8 **argv_envp)
   if(r0==CMINGCNDIS_ERR){
     PERR("fatal(%d)\n",r0);
     sysc(exit_group,1,-1);
-  }else if(r0==CMINGCNDIS_MSGS_ERR){
+  }else if(r0==CMINGCN_MSGS_ERR){
     PERR("fatal(%d):something went wrong with the message system\n",r0);
     sysc(exit_group,1,-1);
   }

@@ -93,6 +93,13 @@ struct i_mnemonic_map{
 #define F_LGKM_CNT 54//virtual field for s_waitcnt, actually in F_SIMM16
 #define F_INVALID  55
 
+static k_u16 fmt_op_offset(k_u32 fmts,k_u32 fmt)
+{
+  if(fmts==(BIT(FMT_VOP1)|BIT(FMT_VOP3A))&&fmt==FMT_VOP3A) return 384;
+  if(fmts==(BIT(FMT_VOP2)|BIT(FMT_VOP3A))&&fmt==FMT_VOP3A) return 256;
+  return 0;
+}
+
 #ifdef IS_C
 #define _(x) ((k_u8*)x)
 struct i_mnemonic_map i_mnemonic_maps[]={

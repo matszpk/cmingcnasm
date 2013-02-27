@@ -43,5 +43,7 @@ static inline k_u64 u_cpu2be64(k_u64 val)
 //little endian
 #define u_cpu2le32(v) (v)
 #define u_cpu2le64(v) (v)
+#define u_le322cpu(v) (v)
+#define u_le642cpu(v) (v)
 //==============================================================================
 #endif
