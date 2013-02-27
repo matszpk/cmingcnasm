@@ -4,6 +4,11 @@
 //author:Sylvain BERTRAND <sylvain.bertrand AT gmail dot com>
 //                        <digital.ragnarok AT gmail dot com>
 //******************************************************************************
+
+
+//**IMPORTANT NOTICE: do *NOT* factor the code. It still misses features.
+
+
 //------------------------------------------------------------------------------
 //compiler stuff
 //------------------------------------------------------------------------------
