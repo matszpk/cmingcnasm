@@ -1,0 +1,4 @@
+{
+global: cmingcnasm_asm;
+local: *;
+};

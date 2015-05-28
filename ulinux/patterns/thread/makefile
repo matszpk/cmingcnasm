@@ -9,9 +9,7 @@ ARCH?=$(shell uname -m | sed -e s/i.86/x86/ -e s/parisc64/parisc/ \
 
 thread:thread.c ../../../ulinux/arch
 	cpp -Wall -Wextra -I../../.. thread.c -o cpp_thread.c
-	gcc -Wall -Wextra -std=gnu99 $(OPTIM) -fverbose-asm -S cpp_thread.c \
-		-o thread.s
-	as thread.s -o thread.o
+	gcc -Wall -Wextra -std=gnu99 $(OPTIM) -c cpp_thread.c -o thread.o
 	ld -O -nostdlib -Bstatic --strip-all thread.o \
 		$$(gcc -print-libgcc-file-name) --output thread
 

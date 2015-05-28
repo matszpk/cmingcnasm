@@ -1,0 +1,37 @@
+#!/bin/sh
+
+clean_do(){
+    rm -f ../../../ulinux/arch
+    rm -f cpp_dir_parse.c dir_parse.o dir_parse \
+          cpp_mem.c mem.o \
+          cpp_vsprintf.c vsprintf.o \
+          args_env.o
+    exit 0
+}
+
+for opt do
+    case "$opt" in
+        clean) clean_do
+        ;;
+        *) echo "unknown option"; exit 1
+        ;;
+    esac
+done
+
+arch=$(uname -m | sed -e s/i.86/x86/ -e s/parisc64/parisc/  \
+             -e s/sun4u/sparc64/ -e s/arm.*/arm/ \
+             -e s/sa110/arm/ -e s/sh.*/sh/)
+
+ln -fs archs/$arch ../../../ulinux/arch
+
+
+cpp -Wall -Wextra -I../../.. ../../utils/mem.c -o cpp_mem.c
+gcc -Wall -Wextra -std=gnu99 -O0 -c cpp_mem.c -o mem.o
+cpp -Wall -Wextra -I../../.. ../../utils/ascii/string/vsprintf.c \
+    -o cpp_vsprintf.c
+gcc -Wall -Wextra -std=gnu99 -O0 -c cpp_vsprintf.c -o vsprintf.o
+as -I../../.. ../../args_env.s -o args_env.o
+cpp -Wall -Wextra -I../../.. dir_parse.c -o cpp_dir_parse.c
+gcc -Wall -Wextra -O0 -c cpp_dir_parse.c -o dir_parse.o
+ld -O -nostdlib -Bstatic --strip-all dir_parse.o args_env.o  mem.o vsprintf.o \
+   $(gcc -print-libgcc-file-name) --output dir_parse

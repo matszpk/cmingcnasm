@@ -1,29 +1,4 @@
-*Do* really check the pattern dir. Those are supposed to be building blocks
-for your applications.
+*DO* really check the pattern dir. Those are supposed to be building blocks for
+your applications.
 
-NAMESPACES:
-  - k_ generic namespace for ulinux
-  - u_ generic namespace for utils
-      * u_a utils for ascii namespace
-
-Why no magic include files: then you have the information of "what's in".
-This is not dirty RAD and it will take time to reach enough stability to justify shared objects.
-Why override the compiler types: because they are long, and name the short ones the same way.
-
-Compiler types (scalability) with some semantics:
- - size semantics:
-     * no range constraint:unsigned long... do not mistake it with linux k_sz
-     * range constraint:take the smallest compiler (C standard) unsigned integer type garanteed to fit the range
- - bool semantics:unsigned tiny (mapped to minimum 8 bits compiler type... unsigned char).
-may do some typedef, one day.
-
-
-CUSTOMARY ABBREVIATIONS:
-blk  block
-buf  buffer
-cmts comments 
-dec  decimal
-fmt  format
-ptr  pointer
-str  string
-sz   size
+String pointers are u8* because void pointers are kind of out of place.

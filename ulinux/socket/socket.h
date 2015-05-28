@@ -1,189 +1,186 @@
 #ifndef ULINUX_SOCKET_SOCKET_H
 #define ULINUX_SOCKET_SOCKET_H
-//******************************************************************************
-//*this code is protected by the GNU affero GPLv3
-//*author:Sylvain BERTRAND <sylvain.bertrand AT gmail dot com>
-//*                        <digital.ragnarok AT gmail dot com>
-//******************************************************************************
-#define __SOCK_ADDR_SZ__ 16//sizeof(struct sockaddr)
+/*******************************************************************************
+this code is protected by the GNU affero GPLv3
+author:Sylvain BERTRAND <sylvain.bertrand AT gmail dot com>
+*******************************************************************************/
+#define ULINUX_SOCK_ADDR_SZ 16/*sizeof(struct sockaddr)*/
 
-#define K_AF_UNSPEC     0
-#define K_AF_UNIX       1//Unix domain sockets
-#define K_AF_LOCAL      1//POSIX name for AF_UNIX
-#define K_AF_INET       2//Internet IP Protocol
-#define K_AF_AX25       3//Amateur Radio AX.25
-#define K_AF_IPX        4//Novell IPX
-#define K_AF_APPLETALK  5//AppleTalk DDP
-#define K_AF_NETROM     6//Amateur Radio NET/ROM
-#define K_AF_BRIDGE     7//Multiprotocol bridge
-#define K_AF_ATMPVC     8//ATM PVCs
-#define K_AF_X25        9//Reserved for X.25 project
-#define K_AF_INET6      10//IP version 6
-#define K_AF_ROSE       11//Amateur Radio X.25 PLP
-#define K_AF_DECnet     12//Reserved for DECnet project
-#define K_AF_NETBEUI    13//Reserved for 802.2LLC project
-#define K_AF_SECURITY   14//Security callback pseudo AF
-#define K_AF_KEY        15//PF_KEY key management API
-#define K_AF_NETLINK    16
-#define K_AF_ROUTE      K_AF_NETLINK//Alias to emulate 4.4BSD
-#define K_AF_PACKET     17//Packet family
-#define K_AF_ASH        18//Ash
-#define K_AF_ECONET     19//Acorn Econet
-#define K_AF_ATMSVC     20//ATM SVCs
-#define K_AF_RDS        21//RDS sockets
-#define K_AF_SNA        22//Linux SNA Project (nutters!)
-#define K_AF_IRDA       23//IRDA sockets
-#define K_AF_PPPOX      24//PPPoX sockets
-#define K_AF_WANPIPE    25//Wanpipe API Sockets
-#define K_AF_LLC        26//Linux LLC
-#define K_AF_CAN        29//Controller Area Network
-#define K_AF_TIPC       30//TIPC sockets
-#define K_AF_BLUETOOTH  31//Bluetooth sockets
-#define K_AF_IUCV       32//IUCV sockets
-#define K_AF_RXRPC      33//RxRPC sockets
-#define K_AF_ISDN       34//mISDN sockets
-#define K_AF_PHONET     35//Phonet sockets
-#define K_AF_IEEE802154 36//IEEE802154 sockets
-#define K_AF_CAIF       37//CAIF sockets
-#define K_AF_MAX        38//For now..
+#define ULINUX_AF_UNSPEC     0
+#define ULINUX_AF_UNIX       1/*Unix domain sockets*/
+#define ULINUX_AF_LOCAL      1/*POSIX name for AF_UNIX*/
+#define ULINUX_AF_INET       2/*Internet IP Protocol*/
+#define ULINUX_AF_AX25       3/*Amateur Radio AX.25*/
+#define ULINUX_AF_IPX        4/*Novell IPX*/
+#define ULINUX_AF_APPLETALK  5/*AppleTalk DDP*/
+#define ULINUX_AF_NETROM     6/*Amateur Radio NET/ROM*/
+#define ULINUX_AF_BRIDGE     7/*Multiprotocol bridge*/
+#define ULINUX_AF_ATMPVC     8/*ATM PVCs*/
+#define ULINUX_AF_X25        9/*Reserved for X.25 project*/
+#define ULINUX_AF_INET6      10/*IP version 6*/
+#define ULINUX_AF_ROSE       11/*Amateur Radio X.25 PLP*/
+#define ULINUX_AF_DECnet     12/*Reserved for DECnet project*/
+#define ULINUX_AF_NETBEUI    13/*Reserved for 802.2LLC project*/
+#define ULINUX_AF_SECURITY   14/*Security callback pseudo AF*/
+#define ULINUX_AF_KEY        15/*PF_KEY key management API*/
+#define ULINUX_AF_NETLINK    16
+#define ULINUX_AF_ROUTE      ULINUX_AF_NETLINK/*Alias to emulate 4.4BSD*/
+#define ULINUX_AF_PACKET     17/*Packet family*/
+#define ULINUX_AF_ASH        18/*Ash*/
+#define ULINUX_AF_ECONET     19/*Acorn Econet*/
+#define ULINUX_AF_ATMSVC     20/*ATM SVCs*/
+#define ULINUX_AF_RDS        21/*RDS sockets*/
+#define ULINUX_AF_SNA        22/*Linux SNA Project (nutters!)*/
+#define ULINUX_AF_IRDA       23/*IRDA sockets*/
+#define ULINUX_AF_PPPOX      24/*PPPoX sockets*/
+#define ULINUX_AF_WANPIPE    25/*Wanpipe API Sockets*/
+#define ULINUX_AF_LLC        26/*Linux LLC*/
+#define ULINUX_AF_CAN        29/*Controller Area Network*/
+#define ULINUX_AF_TIPC       30/*TIPC sockets*/
+#define ULINUX_AF_BLUETOOTH  31/*Bluetooth sockets*/
+#define ULINUX_AF_IUCV       32/*IUCV sockets*/
+#define ULINUX_AF_RXRPC      33/*RxRPC sockets*/
+#define ULINUX_AF_ISDN       34/*mISDN sockets*/
+#define ULINUX_AF_PHONET     35/*Phonet sockets*/
+#define ULINUX_AF_IEEE802154 36/*IEEE802154 sockets*/
+#define ULINUX_AF_CAIF       37/*CAIF sockets*/
+#define ULINUX_AF_MAX        38/*For now..*/
 
-//protocol families, same as address families
-#define K_PF_UNSPEC     K_AF_UNSPEC
-#define K_PF_UNIX       K_AF_UNIX
-#define K_PF_LOCAL      K_AF_LOCAL
-#define K_PF_INET       K_AF_INET
-#define K_PF_AX25       K_AF_AX25
-#define K_PF_IPX        K_AF_IPX
-#define K_PF_APPLETALK  K_AF_APPLETALK
-#define K_PF_NETROM     K_AF_NETROM
-#define K_PF_BRIDGE     K_AF_BRIDGE
-#define K_PF_ATMPVC     K_AF_ATMPVC
-#define K_PF_X25        K_AF_X25
-#define K_PF_INET6      K_AF_INET6
-#define K_PF_ROSE       K_AF_ROSE
-#define K_PF_DECnet     K_AF_DECnet
-#define K_PF_NETBEUI    K_AF_NETBEUI
-#define K_PF_SECURITY   K_AF_SECURITY
-#define K_PF_KEY        K_AF_KEY
-#define K_PF_NETLINK    K_AF_NETLINK
-#define K_PF_ROUTE      K_AF_ROUTE
-#define K_PF_PACKET     K_AF_PACKET
-#define K_PF_ASH        K_AF_ASH
-#define K_PF_ECONET     K_AF_ECONET
-#define K_PF_ATMSVC     K_AF_ATMSVC
-#define K_PF_RDS        K_AF_RDS
-#define K_PF_SNA        K_AF_SNA
-#define K_PF_IRDA       K_AF_IRDA
-#define K_PF_PPPOX      K_AF_PPPOX
-#define K_PF_WANPIPE    K_AF_WANPIPE
-#define K_PF_LLC        K_AF_LLC
-#define K_PF_CAN        K_AF_CAN
-#define K_PF_TIPC       K_AF_TIPC
-#define K_PF_BLUETOOTH  K_AF_BLUETOOTH
-#define K_PF_IUCV       K_AF_IUCV
-#define K_PF_RXRPC      K_AF_RXRPC
-#define K_PF_ISDN       K_AF_ISDN
-#define K_PF_PHONET     K_AF_PHONET
-#define K_PF_IEEE802154 K_AF_IEEE802154
-#define K_PF_CAIF       K_AF_CAIF
-#define K_PF_MAX        K_AF_MAX
+/*protocol families, same as address families*/
+#define ULINUX_PF_UNSPEC     ULINUX_AF_UNSPEC
+#define ULINUX_PF_UNIX       ULINUX_AF_UNIX
+#define ULINUX_PF_LOCAL      ULINUX_AF_LOCAL
+#define ULINUX_PF_INET       ULINUX_AF_INET
+#define ULINUX_PF_AX25       ULINUX_AF_AX25
+#define ULINUX_PF_IPX        ULINUX_AF_IPX
+#define ULINUX_PF_APPLETALK  ULINUX_AF_APPLETALK
+#define ULINUX_PF_NETROM     ULINUX_AF_NETROM
+#define ULINUX_PF_BRIDGE     ULINUX_AF_BRIDGE
+#define ULINUX_PF_ATMPVC     ULINUX_AF_ATMPVC
+#define ULINUX_PF_X25        ULINUX_AF_X25
+#define ULINUX_PF_INET6      ULINUX_AF_INET6
+#define ULINUX_PF_ROSE       ULINUX_AF_ROSE
+#define ULINUX_PF_DECnet     ULINUX_AF_DECnet
+#define ULINUX_PF_NETBEUI    ULINUX_AF_NETBEUI
+#define ULINUX_PF_SECURITY   ULINUX_AF_SECURITY
+#define ULINUX_PF_KEY        ULINUX_AF_KEY
+#define ULINUX_PF_NETLINK    ULINUX_AF_NETLINK
+#define ULINUX_PF_ROUTE      ULINUX_AF_ROUTE
+#define ULINUX_PF_PACKET     ULINUX_AF_PACKET
+#define ULINUX_PF_ASH        ULINUX_AF_ASH
+#define ULINUX_PF_ECONET     ULINUX_AF_ECONET
+#define ULINUX_PF_ATMSVC     ULINUX_AF_ATMSVC
+#define ULINUX_PF_RDS        ULINUX_AF_RDS
+#define ULINUX_PF_SNA        ULINUX_AF_SNA
+#define ULINUX_PF_IRDA       ULINUX_AF_IRDA
+#define ULINUX_PF_PPPOX      ULINUX_AF_PPPOX
+#define ULINUX_PF_WANPIPE    ULINUX_AF_WANPIPE
+#define ULINUX_PF_LLC        ULINUX_AF_LLC
+#define ULINUX_PF_CAN        ULINUX_AF_CAN
+#define ULINUX_PF_TIPC       ULINUX_AF_TIPC
+#define ULINUX_PF_BLUETOOTH  ULINUX_AF_BLUETOOTH
+#define ULINUX_PF_IUCV       ULINUX_AF_IUCV
+#define ULINUX_PF_RXRPC      ULINUX_AF_RXRPC
+#define ULINUX_PF_ISDN       ULINUX_AF_ISDN
+#define ULINUX_PF_PHONET     ULINUX_AF_PHONET
+#define ULINUX_PF_IEEE802154 ULINUX_AF_IEEE802154
+#define ULINUX_PF_CAIF       ULINUX_AF_CAIF
+#define ULINUX_PF_MAX        ULINUX_AF_MAX
 
-enum k_sock_type{
- K_SOCK_STREAM=   1,
- K_SOCK_DGRAM=    2,
- K_SOCK_RAW=      3,
- K_SOCK_RDM=      4,
- K_SOCK_SEQPACKET=5,
- K_SOCK_DCCP=     6,
- K_SOCK_PACKET=   10,
+enum ulinux_sock_type{
+ ULINUX_SOCK_STREAM=   1,
+ ULINUX_SOCK_DGRAM=    2,
+ ULINUX_SOCK_RAW=      3,
+ ULINUX_SOCK_RDM=      4,
+ ULINUX_SOCK_SEQPACKET=5,
+ ULINUX_SOCK_DCCP=     6,
+ ULINUX_SOCK_PACKET=   10,
 };
 
-#define K_SOCK_NONBLOCK K_O_NONBLOCK
+#define ULINUX_SOCK_NONBLOCK ULINUX_O_NONBLOCK
 
-//------------------------------------------------------------------------------
-//options
-//------------------------------------------------------------------------------
-#define K_SOL_SOCKET	1//sol is *so*cket *l*evel for setsockopt(2)
+/*----------------------------------------------------------------------------*/
+/*options*/
+#define ULINUX_SOL_SOCKET	1/*sol is *so*cket *l*evel for setsockopt(2)*/
 
-#define K_SO_DEBUG                          1
-#define K_SO_REUSEADDR                      2
-#define K_SO_TYPE                           3
-#define K_SO_ERROR                          4
-#define K_SO_DONTROUTE                      5
-#define K_SO_BROADCAST                      6
-#define K_SO_SNDBUF                         7
-#define K_SO_RCVBUF                         8
-#define K_SO_SNDBUFFORCE                   32
-#define K_SO_RCVBUFFORCE                   33
-#define K_SO_KEEPALIVE                      9
-#define K_SO_OOBINLINE                     10
-#define K_SO_NO_CHECK                      11
-#define K_SO_PRIORITY                      12
-#define K_SO_LINGER                        13
-#define K_SO_BSDCOMPAT                     14
-//to add :#define SO_REUSEPORT 15
-#define K_SO_PASSCRED                      16
-#define K_SO_PEERCRED                      17
-#define K_SO_RCVLOWAT                      18
-#define K_SO_SNDLOWAT                      19
-#define K_SO_RCVTIMEO                      20
-#define K_SO_SNDTIMEO                      21
+#define ULINUX_SO_DEBUG                          1
+#define ULINUX_SO_REUSEADDR                      2
+#define ULINUX_SO_TYPE                           3
+#define ULINUX_SO_ERROR                          4
+#define ULINUX_SO_DONTROUTE                      5
+#define ULINUX_SO_BROADCAST                      6
+#define ULINUX_SO_SNDBUF                         7
+#define ULINUX_SO_RCVBUF                         8
+#define ULINUX_SO_SNDBUFFORCE                   32
+#define ULINUX_SO_RCVBUFFORCE                   33
+#define ULINUX_SO_KEEPALIVE                      9
+#define ULINUX_SO_OOBINLINE                     10
+#define ULINUX_SO_NO_CHECK                      11
+#define ULINUX_SO_PRIORITY                      12
+#define ULINUX_SO_LINGER                        13
+#define ULINUX_SO_BSDCOMPAT                     14
+/*to add :#define SO_REUSEPORT 15*/
+#define ULINUX_SO_PASSCRED                      16
+#define ULINUX_SO_PEERCRED                      17
+#define ULINUX_SO_RCVLOWAT                      18
+#define ULINUX_SO_SNDLOWAT                      19
+#define ULINUX_SO_RCVTIMEO                      20
+#define ULINUX_SO_SNDTIMEO                      21
 
-//security levels - as per NRL IPv6 - don't actually do anything
-#define K_SO_SECURITY_AUTHENTICATION       22
-#define K_SO_SECURITY_ENCRYPTION_TRANSPORT 23
-#define K_SO_SECURITY_ENCRYPTION_NETWORK   24
+/*security levels - as per NRL IPv6 - don't actually do anything*/
+#define ULINUX_SO_SECURITY_AUTHENTICATION       22
+#define ULINUX_SO_SECURITY_ENCRYPTION_TRANSPORT 23
+#define ULINUX_SO_SECURITY_ENCRYPTION_NETWORK   24
 
-#define K_SO_BINDTODEVICE                  25
+#define ULINUX_SO_BINDTODEVICE                  25
 
-//socket filtering
-#define K_SO_ATTACH_FILTER                 26
-#define K_SO_DETACH_FILTER                 27
+/*socket filtering*/
+#define ULINUX_SO_ATTACH_FILTER                 26
+#define ULINUX_SO_DETACH_FILTER                 27
 
-#define K_SO_PEERNAME                      28
-#define K_SO_TIMESTAMP                     29
-#define K_SCM_TIMESTAMP                    K_SO_TIMESTAMP
+#define ULINUX_SO_PEERNAME                      28
+#define ULINUX_SO_TIMESTAMP                     29
+#define ULINUX_SCM_TIMESTAMP                    ULINUX_SO_TIMESTAMP
 
-#define K_SO_ACCEPTCONN                    30
+#define ULINUX_SO_ACCEPTCONN                    30
 
-#define K_SO_PEERSEC                       31
-#define K_SO_PASSSEC                       34
-#define K_SO_TIMESTAMPNS                   35
-#define K_SCM_TIMESTAMPNS                  K_SO_TIMESTAMPNS
+#define ULINUX_SO_PEERSEC                       31
+#define ULINUX_SO_PASSSEC                       34
+#define ULINUX_SO_TIMESTAMPNS                   35
+#define ULINUX_SCM_TIMESTAMPNS                  ULINUX_SO_TIMESTAMPNS
 
-#define K_SO_MARK                          36
+#define ULINUX_SO_MARK                          36
 
-#define K_SO_TIMESTAMPING                  37
-#define K_SCM_TIMESTAMPING                 K_SO_TIMESTAMPING
+#define ULINUX_SO_TIMESTAMPING                  37
+#define ULINUX_SCM_TIMESTAMPING                 ULINUX_SO_TIMESTAMPING
 
-#define K_SO_PROTOCOL                      38
-#define K_SO_DOMAIN                        39
+#define ULINUX_SO_PROTOCOL                      38
+#define ULINUX_SO_DOMAIN                        39
 
-#define K_SO_RXQ_OVFL                      40
-#define K_SO_CLOEXEC                       02000000//same than K_O_CLOEXEC
-//------------------------------------------------------------------------------
+#define ULINUX_SO_RXQ_OVFL                      40
+#define ULINUX_SO_CLOEXEC                       02000000/*= K_O_CLOEXEC*/
+/*----------------------------------------------------------------------------*/
 
-//------------------------------------------------------------------------------
-//socketcall multiplexer
-//------------------------------------------------------------------------------
-#define K_SYS_SOCKET      1
-#define K_SYS_BIND        2
-#define K_SYS_CONNECT     3
-#define K_SYS_LISTEN      4
-#define K_SYS_ACCEPT      5
-#define K_SYS_GETSOCKNAME 6
-#define K_SYS_GETPEERNAME 7
-#define K_SYS_SOCKETPAIR  8
-#define K_SYS_SEND        9
-#define K_SYS_RECV        10
-#define K_SYS_SENDTO      11
-#define K_SYS_RECVFROM    12
-#define K_SYS_SHUTDOWN    13
-#define K_SYS_SETSOCKOPT  14
-#define K_SYS_GETSOCKOPT  15
-#define K_SYS_SENDMSG     16
-#define K_SYS_RECVMSG     17
-#define K_SYS_ACCEPT4     18
-#define K_SYS_RECVMMSG    19
-#define K_SYS_SENDMMSG    20
+/*----------------------------------------------------------------------------*/
+/*socketcall multiplexer*/
+#define ULINUX_SYS_SOCKET      1
+#define ULINUX_SYS_BIND        2
+#define ULINUX_SYS_CONNECT     3
+#define ULINUX_SYS_LISTEN      4
+#define ULINUX_SYS_ACCEPT      5
+#define ULINUX_SYS_GETSOCKNAME 6
+#define ULINUX_SYS_GETPEERNAME 7
+#define ULINUX_SYS_SOCKETPAIR  8
+#define ULINUX_SYS_SEND        9
+#define ULINUX_SYS_RECV        10
+#define ULINUX_SYS_SENDTO      11
+#define ULINUX_SYS_RECVFROM    12
+#define ULINUX_SYS_SHUTDOWN    13
+#define ULINUX_SYS_SETSOCKOPT  14
+#define ULINUX_SYS_GETSOCKOPT  15
+#define ULINUX_SYS_SENDMSG     16
+#define ULINUX_SYS_RECVMSG     17
+#define ULINUX_SYS_ACCEPT4     18
+#define ULINUX_SYS_RECVMMSG    19
+#define ULINUX_SYS_SENDMMSG    20
 #endif

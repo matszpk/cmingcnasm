@@ -1,5 +1,14 @@
 This is cmingcnasm: C language MINimal GCN (Graphic Core Next) ASseMbler.
 
-Configure in conf.mk, then 'make all'
+BUILD: see make shell script
+INSTALL: your package manager should do it manually,
+	* dis lib
+	* dis lib symbolic links
+	* dis lib header file
+	* dis bin
+	* asm lib
+	* asm lib symbolic links
+	* asm lib header files
+	* asm bin
 
 **Keep a eye an ABBREVIATIONS if you want to understand the code**

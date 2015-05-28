@@ -1,7 +1,2 @@
-x86/x86_64 important notes:
-there is an infrastructure in the linux kernel to select proper code path based
-on cpuinfo flags. Namely, for cross compilation, we would need to inject more
-than just the architecture in order to select the right code path.
-Selecting the right code path at runtime is an issue which concern *only*
-binary distributed programs (most of them are close source), then not us:
-Because, it's lame.
+Move the code to C89 declaration (beginning of a block).
+Cleanup the patterns (makefile to sh scripts, C89...)

@@ -1,22 +1,20 @@
 #ifndef ULINUX_COMPILER_TYPES_H
 #define ULINUX_COMPILER_TYPES_H
-//******************************************************************************
-//*this code is protected by the GNU affero GPLv3
-//*author:Sylvain BERTRAND <sylvain.bertrand AT gmail dot com>
-//*                        <digital.ragnarok AT gmail dot com>
-//******************************************************************************
-//with GCC
-//'char' is not a 'signed char' neither it is a 'unsigned char'
-//but 'char' is signed on x86 and unsigned on ARM... feel the difference
-typedef signed char        k_t;//t stands for tiny
-typedef short              k_s;
-typedef int                k_i;
-typedef long               k_l;
-typedef long long          k_ll;
+/******************************************************************************
+this code is protected by the GNU affero GPLv3
+author:Sylvain BERTRAND <sylvain.bertrand AT gmail dot com>
+*******************************************************************************/
+#define ulinux_sc signed char
+#define ulinux_ss signed short
+#define ulinux_si signed int
+#define ulinux_sl signed long
+#define ulinux_sll signed long long
 
-typedef unsigned char      k_ut;//t stands for tiny
-typedef unsigned short     k_us;
-typedef unsigned           k_u;
-typedef unsigned long      k_ul;
-typedef unsigned long long k_ull;
+#define ulinux_uc unsigned char
+#define ulinux_us unsigned short
+#define ulinux_ui unsigned int
+#define ulinux_ul unsigned long
+#define ulinux_ull unsigned long long
+
+#define ulinux_f float
 #endif

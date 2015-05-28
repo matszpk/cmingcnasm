@@ -1,0 +1,4 @@
+{
+global: cmingcndis_dis;
+local: *;
+};

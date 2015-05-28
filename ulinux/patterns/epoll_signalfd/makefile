@@ -9,13 +9,11 @@ ARCH?=$(shell uname -m | sed -e s/i.86/x86/ -e s/parisc64/parisc/ \
 
 epoll_signalfd:epoll_signalfd.c ../../../ulinux/arch
 	cpp -Wall -Wextra -I../../.. ../../utils/mem.c -o cpp_mem.c
-	gcc -Wall -Wextra -std=gnu99 $(OPTIM) -fverbose-asm -S cpp_mem.c -o mem.s
-	as mem.s -o mem.o
+	gcc -Wall -Wextra -std=gnu99 $(OPTIM) -c cpp_mem.c -o mem.o
 	cpp -Wall -Wextra -I../../.. epoll_signalfd.c \
 		-o cpp_epoll_signalfd.c
-	gcc -Wall -Wextra -std=gnu99 $(OPTIM) -fverbose-asm -S \
-		cpp_epoll_signalfd.c -o epoll_signalfd.s
-	as epoll_signalfd.s -o epoll_signalfd.o
+	gcc -Wall -Wextra -std=gnu99 $(OPTIM) -c cpp_epoll_signalfd.c \
+		-o epoll_signalfd.o
 	ld -O -nostdlib -Bstatic --strip-all mem.o epoll_signalfd.o \
 		$$(gcc -print-libgcc-file-name) --output epoll_signalfd
 
@@ -24,5 +22,5 @@ epoll_signalfd:epoll_signalfd.c ../../../ulinux/arch
 
 clean:
 	-rm -f ../../../ulinux/arch
-	-rm -f cpp_epoll_signalfd.c epoll_signalfd.s epoll_signalfd.o \
-		epoll_signalfd cpp_mem.c mem.s mem.o
+	-rm -f cpp_epoll_signalfd.c epoll_signalfd.o \
+		epoll_signalfd cpp_mem.c mem.o

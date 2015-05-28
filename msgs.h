@@ -1,16 +1,16 @@
 #ifndef MSGS_H
 #define MSGS_H
-//******************************************************************************
-//this code is protected by the GNU affero GPLv3 with a lesser exception
-//for video games
-//author:Sylvain BERTRAND <sylvain.bertrand AT gmail dot com>
-//                        <digital.ragnarok AT gmail dot com>
-//******************************************************************************
+/*******************************************************************************
+this code is protected by the GNU affero GPLv3 with a lesser exception
+for video games
+author:Sylvain BERTRAND <sylvain.bertrand AT gmail dot com>
+*******************************************************************************/
 struct msgs_ctx{
-  k_s32 sz_max;
-  k_u8 **msgs;
-  k_s32 *sz;
+	s32 sz_max;
+	u8 **msgs;
+	s32 *sz;
 };
 
-k_s8 msg(struct msgs_ctx *msgs,k_u8 *fmt,...);
+#define msg(a,b,...) msg_hidden(a,(u8*)(b),##__VA_ARGS__)
+s8 msg_hidden(struct msgs_ctx *msgs,u8 *fmt,...);
 #endif

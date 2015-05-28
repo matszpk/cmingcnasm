@@ -1,67 +1,67 @@
 #ifndef ULINUX_ARCH_SIGNAL_SIGINFO_H
 #define ULINUX_ARCH_SIGNAL_SIGINFO_H
-//******************************************************************************
-//*this code is protected by the GNU affero GPLv3
-//*author:Sylvain BERTRAND <sylvain.bertrand AT gmail dot com>
-//*                        <digital.ragnarok AT gmail dot com>
-//******************************************************************************
-union k_sigval{
-  k_i i;
+/*******************************************************************************
+this code is protected by the GNU affero GPLv3
+author:Sylvain BERTRAND <sylvain.bertrand AT gmail dot com>
+*******************************************************************************/
+union ulinux_sigval{
+  ulinux_si i;
   void* ptr;
 };
 
-#define SI_PREAMBLE_SIZE (4*sizeof(k_i))
-#define SI_MAX_SIZE	128
-#define SI_PAD_SIZE	((SI_MAX_SIZE-SI_PREAMBLE_SIZE)/sizeof(k_i))
+#define ULINUX_SI_PREAMBLE_SIZE (4*sizeof(ulinux_si))
+#define ULINUX_SI_MAX_SIZE	128
+#define ULINUX_SI_PAD_SIZE	((ULINUX_SI_MAX_SIZE-ULINUX_SI_PREAMBLE_SIZE)\
+/sizeof(ulinux_si))
 
-struct k_siginfo{
-  k_i si_signo;
-  k_i si_errno;
-  k_i si_code;
+struct ulinux_siginfo{
+  ulinux_si si_signo;
+  ulinux_si si_errno;
+  ulinux_si si_code;
 
   union{
-    k_i pad[SI_PAD_SIZE];
+    ulinux_si pad[ULINUX_SI_PAD_SIZE];
 
-    //kill()
+    /*kill()*/
     struct{
-      k_i pid;//sender's pid 
-      k_u uid;//sender's uid
+      ulinux_si pid;/*sender's pid*/
+      ulinux_ui uid;/*sender's uid*/
     } kill;
 
-    //posix.1b timers
+    /*posix.1b timers*/
     struct{
-      k_i tid;//timer id
-      k_i overrun;//overrun count
-      union k_sigval sigval;//same as below
-      k_i sys_private;//not to be passed to user
+      ulinux_si tid;/*timer id*/
+      ulinux_si overrun;/*overrun count*/
+      union ulinux_sigval sigval;/*same as below*/
+      ulinux_si sys_private;/*not to be passed to user*/
     } timer;
 
-    //posix.1b signals
+    /*posix.1b signals*/
     struct{
-      k_i pid;//sender's pid
-      k_u uid;//sender's uid
-      union k_sigval sigval;
+      ulinux_si pid;/*sender's pid*/
+      ulinux_ui uid;/*sender's uid*/
+      union ulinux_sigval sigval;
     } rt;
 
-    //SIGCHLD
+    /*SIGCHLD*/
     struct{
-      k_i pid;//which child
-      k_u uid;//sender's uid
-      k_i status;//exit code
-      k_ll utime __attribute__((aligned(4));
-      k_ll stime __attribute__((aligned(4));
+      ulinux_si pid;/*which child*/
+      ulinux_us uid;/*sender's uid*/
+      ulinux_si status;/*exit code*/
+      ulinux_sl utime;
+      ulinux_sl stime;
     } sigchld;
 
-    //SIGILL, SIGFPE, SIGSEGV, SIGBUS
+    /*SIGILL, SIGFPE, SIGSEGV, SIGBUS*/
     struct{
-      void* addr;//faulting insn/memory ref.
-      k_s addr_lsb;//lsb of the reported address
+      void* addr;/*faulting insn/memory ref.*/
+      ulinux_ss addr_lsb;/*lsb of the reported address*/
     } sigfault;
 
-    //SIGPOLL
+    /*SIGPOLL*/
     struct{
-      k_l band;//POLL_IN, POLL_OUT, POLL_MSG
-      k_i fd;
+      ulinux_sl band;/*POLL_IN, POLL_OUT, POLL_MSG*/
+      ulinux_si fd;
     } sigpoll;
   } fields;
 };

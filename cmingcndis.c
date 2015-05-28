@@ -1,17 +1,16 @@
-//******************************************************************************
-//this code is protected by the GNU affero GPLv3
-//author:Sylvain BERTRAND <sylvain.bertrand AT gmail dot com>
-//                        <digital.ragnarok AT gmail dot com>
-//******************************************************************************
-//------------------------------------------------------------------------------
-//compiler stuff
-//------------------------------------------------------------------------------
+/*******************************************************************************
+this code is protected by the GNU affero GPLv3
+author:Sylvain BERTRAND <sylvain.bertrand AT gmail dot com>
+*******************************************************************************/
+/*------------------------------------------------------------------------------
+compiler stuff
+------------------------------------------------------------------------------*/
 #include <stdarg.h>
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
 
-//------------------------------------------------------------------------------
-//ulinux stuff
-//------------------------------------------------------------------------------
+/*------------------------------------------------------------------------------
+ulinux stuff
+------------------------------------------------------------------------------*/
 #include <ulinux/compiler_types.h>
 #include <ulinux/types.h>
 #include <ulinux/sysc.h>
@@ -21,175 +20,189 @@
 #include <ulinux/stat.h>
 #include <ulinux/mmap.h>
 
+#include <ulinux/utils/mem.h>
 #include <ulinux/utils/ascii/string/string.h>
 #include <ulinux/utils/ascii/string/vsprintf.h>
-//------------------------------------------------------------------------------
 
-//------------------------------------------------------------------------------
-//used libs
-//------------------------------------------------------------------------------
+#include "ulinux-namespace.h"
+/*----------------------------------------------------------------------------*/
+
+/*------------------------------------------------------------------------------
+used libs
+------------------------------------------------------------------------------*/
 #include <cmingcndis.h>
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
 
 #ifndef QUIET
-k_u8 *g_dprintf_buf;
+u8 *g_dprintf_buf;
 #define DPRINTF_BUF_SZ 2048
-#define PERR(f,...) u_a_dprintf(2,g_dprintf_buf,DPRINTF_BUF_SZ,(k_u8*)f,\
+#define PERR(f,...) ulinux_dprintf(2,g_dprintf_buf,DPRINTF_BUF_SZ,(u8*)f,\
 ##__VA_ARGS__)
-#define PERRC(s) sysc(write,3,2,s,sizeof(s)-1)
-#define POUTC(s) sysc(write,3,1,s,sizeof(s)-1)
+#define PERRC(s) ulinux_sysc(write,3,2,s,sizeof(s)-1)
+#define POUTC(s) ulinux_sysc(write,3,1,s,sizeof(s)-1)
 #endif
-
-#define _(x) ((k_u8*)x)
 
 #define M_PATHNAME_DEFAULT "machine.bgcn"
 #define SRC_PATHNAME_DEFAULT "source.sgcn"
 
-static k_u8 *m_pathname=_(M_PATHNAME_DEFAULT);
-static k_i m_fd=-1;
+static u8 *m_pathname=(u8*)M_PATHNAME_DEFAULT;
+static si m_fd=-1;
 static void *m=0;
-static k_s32 m_sz=0;
+static s32 m_sz=0;
 
-static k_u8 *src_pathname=_(SRC_PATHNAME_DEFAULT);
-static k_i src_fd=-1;
-static k_u8 *src=0;
-static k_s32 src_sz=0;
-static k_s32 src_sz_max=1024*1024;//default to 1MB
-static void args_parse(k_i argc,k_u8 **argv_envp)
+static u8 *src_pathname=(u8*)SRC_PATHNAME_DEFAULT;
+static si src_fd=-1;
+static u8 *src=0;
+static s32 src_sz=0;
+static s32 src_sz_max=1024*1024;/*default to 1MiB*/
+
+static void args_parse(sl argc,u8 **argv_envp)
 {
-  k_u8 dash_options_enabled=1;
-  k_u8 src_pathname_missing=1;
-  k_u8 m_pathname_missing=1;
+	u8 dash_options_enabled=1;
+	u8 src_pathname_missing=1;
+	u8 m_pathname_missing=1;
+	sl arg=1;/*skip program pathname*/
 
-  k_i arg=1;//skip program pathname
+	loop{
+		if(arg+1>argc) break;
 
-  while(arg+1<=argc){
-    if(dash_options_enabled){
-      if(u_a_strncmp(_("--"),argv_envp[arg],2)==0){
-        dash_options_enabled=0;
-        ++arg;
-        continue;
-      }
-      if(u_a_strncmp(_("-h"),argv_envp[arg],2)==0){
-        POUTC(
+		if(dash_options_enabled){
+			if(strncmp("--",argv_envp[arg],2)==0){
+				dash_options_enabled=0;
+				++arg;
+				continue;
+			}
+			if(strncmp("-h",argv_envp[arg],2)==0){
+				POUTC(
 "cmingcndis [OPTIONS] [--] [MACHINE FILE] [SOURCE FILE]\n"
 "  OPTIONS:\n"
 "    -h: help, this message\n"
-"  [--]: to allow OPTIONS (i.e. -h) to start MACHINE or SOURCE pathname\n"
+"  [--]: to allow OPTIONS (i.e. -h) to begin MACHINE or SOURCE pathname\n"
 "  MACHINE FILE: input file, default='" M_PATHNAME_DEFAULT "'\n"
-"  SOURCE FILE: output file, default='" SRC_PATHNAME_DEFAULT "'\n"
-        );
-        sysc(exit_group,1,0);
-      }
-    }
+"  SOURCE FILE: output file, default='" SRC_PATHNAME_DEFAULT "'\n");
+				exit(0);
+			}
+		}
 
-    if(m_pathname_missing){
-      m_pathname=&argv_envp[arg][0];
-      m_pathname_missing=0;
-      ++arg;
-      continue;
-    }
+    		if(m_pathname_missing){
+			m_pathname=&argv_envp[arg][0];
+			m_pathname_missing=0;
+			++arg;
+			continue;
+		}
 
-    if(src_pathname_missing){
-      src_pathname=&argv_envp[arg][0];
-      src_pathname_missing=0;
-      ++arg;
-      continue;
-    }
-  }
+    		if(src_pathname_missing){
+			src_pathname=&argv_envp[arg][0];
+			src_pathname_missing=0;
+			++arg;
+			continue;
+		}
+	}
 }
 
 static void m_mmap(void)
 {
-  k_l r;
-  do r=sysc(open,3,m_pathname,K_O_RDONLY,0);while(r==-K_EINTR);
-  if(K_ISERR(r)){
-    PERR("fatal(%ld):unable to open machine file\n",r);
-    sysc(exit_group,1,-1);
-  }
-  m_fd=(k_i)r;
+	sl r;
+	struct stat m_stat;
+	loop{
+		r=open(m_pathname,O_RDONLY,0);
+		if(r!=-EINTR) break;
+	}
+	if(ISERR(r)){
+		PERR("fatal(%ld):unable to open machine file\n",r);
+		exit(-1);
+	}
+	m_fd=(si)r;
 
-  struct k_stat m_stat;
-  r=sysc(fstat,2,m_fd,&m_stat);
-  if(K_ISERR(r)){
-    PERR("fatal(%ld):unable to stat machine file\n",r);
-    sysc(exit_group,1,-1);
-  }
-  m_sz=(k_s32)m_stat.sz;
+	r=fstat(m_fd,&m_stat);
+	if(ISERR(r)){
+		PERR("fatal(%ld):unable to stat machine file\n",r);
+		exit(-1);
+	}
+	m_sz=(s32)m_stat.sz;
 
-  if(!m_sz){
-    PERR("WARNING:machine file is empty, exiting with no error\n");
-    sysc(exit_group,1,0);
-  }
+	if(!m_sz){
+		PERR("WARNING:machine file is empty, exiting with no error\n");
+		exit(0);
+	}
   
-  r=sysc(mmap,6,0,m_sz,K_PROT_READ,K_MAP_PRIVATE,m_fd,0);
-  if(K_ISERR(r)){
-    PERR("fatal(%ld):unable to mmap machine file\n",r);
-    sysc(exit_group,1,-1);
-  }
-  m=(void*)r;
+	r=mmap(m_sz,PROT_READ,MAP_PRIVATE,m_fd);
+	if(ISERR(r)){
+		PERR("fatal(%ld):unable to mmap machine file\n",r);
+		exit(-1);
+	}
+	m=(u8*)r;
 }
 
 static void src_save(void)
 {
-  k_l r;
-  do
-    r=sysc(open,3,src_pathname,K_O_CREAT|K_O_TRUNC|K_O_WRONLY,K_S_IRUSR
-                                                |K_S_IWUSR|K_S_IRGRP|K_S_IROTH);
-  while(r==-K_EINTR);
-  if(K_ISERR(r)){
-    PERR("fatal(%ld):unable to open source file\n",r);
-    sysc(exit_group,1,-1);
-  }
-  src_fd=(k_i)r;
+	sl r;
+	s32 bytes_written;
 
-  k_s32 bytes_written=0;
-  do{
-    do
-      r=sysc(write,3,src_fd,src+bytes_written,src_sz-bytes_written);
-    while(r==-K_EINTR);
-    if(K_ISERR(r)){
-      PERR("fatal(%ld):error writing source file\n",r);
-      sysc(exit_group,1,-1);
-    }
-    bytes_written+=(k_s32)r;
-  }while(bytes_written!=src_sz);
+	loop{
+		r=open(src_pathname,O_CREAT|O_TRUNC|O_WRONLY,S_IRUSR|S_IWUSR
+							|S_IRGRP|S_IROTH);
+		if(r!=-EINTR) break;
+	}
+	if(ISERR(r)){
+		PERR("fatal(%ld):unable to open source file\n",r);
+		exit(-1);
+	}
+	src_fd=(si)r;
+
+	bytes_written=0;
+	loop{
+		loop{
+			r=write(src_fd,src+bytes_written,src_sz-bytes_written);
+			if(r!=-EINTR) break;
+		}
+		if(ISERR(r)){
+			PERR("fatal(%ld):error writing source file\n",r);
+			exit(-1);
+		}
+		bytes_written+=(s32)r;
+		if(bytes_written==src_sz) break;
+	}
 }
 
-//******************************************************************************
-void start(k_i argc, k_u8 **argv_envp)
+/******************************************************************************/
+void ulinux_start(sl argc,u8 **argv_envp)
 {
+	u8 *msgs;
+	s32 msgs_sz;
+	s8 r0;
 #ifndef QUIET 
-  static k_u8 dprintf_buf[DPRINTF_BUF_SZ];
-  g_dprintf_buf=dprintf_buf;
+	static u8 dprintf_buf[DPRINTF_BUF_SZ];
+	g_dprintf_buf=dprintf_buf;
 #endif
-  args_parse(argc,argv_envp);
-  m_mmap();
+	args_parse(argc,argv_envp);
+	m_mmap();
 
-  k_u8 *msgs;
-  k_s32 msgs_sz;
+	r0=cmingcndis_dis(	m,
+				m_sz,
+				src_sz_max,
+				&src,
+				&src_sz,
+				10*1024,/*max 10kiB of messages*/
+				&msgs,
+				&msgs_sz);
 
-  k_s8 r0=cmingcndis_dis(m,
-                         m_sz,
-                         src_sz_max,
-                         &src,
-                         &src_sz,
-                         10*1024,//max 10kB of messages
-                         &msgs,
-                         &msgs_sz);
+	if(msgs_sz){
+		sl r1;
+		loop{
+			r1=write(2,msgs,msgs_sz);
+			if(r1!=-EINTR&&r1!=-EAGAIN) break;
+  		}
+	}
+	if(r0==CMINGCNDIS_ERR){
+		PERR("fatal(%d)\n",r0);
+		exit(-1);
+	}else if(r0==CMINGCN_MSGS_ERR){
+		PERR("fatal(%d):something went wrong with the message system\n",
+									r0);
+		exit(-1);
+	}
 
-  if(msgs_sz){
-    k_l r1;
-    do r1=sysc(write,3,2,msgs,msgs_sz); while(r1==-K_EINTR||r1==-K_EAGAIN);
-  }
-  if(r0==CMINGCNDIS_ERR){
-    PERR("fatal(%d)\n",r0);
-    sysc(exit_group,1,-1);
-  }else if(r0==CMINGCN_MSGS_ERR){
-    PERR("fatal(%d):something went wrong with the message system\n",r0);
-    sysc(exit_group,1,-1);
-  }
-
-  src_save();
-  sysc(exit_group,1,0);
+	src_save();
+	exit(0);
 }

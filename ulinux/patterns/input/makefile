@@ -9,22 +9,12 @@ ARCH?=$(shell uname -m | sed -e s/i.86/x86/ -e s/parisc64/parisc/ \
 
 evdev:evdev.c ../../../ulinux/arch
 	cpp -Wall -Wextra -I../../.. ../../utils/mem.c -o cpp_mem.c
-	gcc -Wall -Wextra -std=gnu99 $(OPTIM) -fverbose-asm -S cpp_mem.c -o mem.s
-	as mem.s -o mem.o
+	gcc -Wall -Wextra -std=gnu99 $(OPTIM) -c cpp_mem.c -o mem.o
 	cpp -Wall -Wextra -I../../.. ../../utils/ascii/string/vsprintf.c \
 		-o cpp_vsprintf.c
-	gcc -Wall -Wextra -std=gnu99 $(OPTIM) -fverbose-asm -S cpp_vsprintf.c \
-		-o vsprintf.s
-	as vsprintf.s -o vsprintf.o
-	cpp -Wall -Wextra -I../../.. ../../utils/ascii/string/string.c \
-		-o cpp_string.c
-	gcc -Wall -Wextra -std=gnu99 $(OPTIM) -fverbose-asm -S cpp_string.c \
-		-o string.s
-	as string.s -o string.o
+	gcc -Wall -Wextra -std=gnu99 $(OPTIM) -c cpp_vsprintf.c -o vsprintf.o
 	cpp -Wall -Wextra -I../../.. evdev.c -o cpp_evdev.c
-	gcc -Wall -Wextra -std=gnu99 $(OPTIM) -fverbose-asm -S cpp_evdev.c \
-		-o evdev.s
-	as evdev.s -o evdev.o
+	gcc -Wall -Wextra -std=gnu99 $(OPTIM) -c cpp_evdev.c -o evdev.o
 	ld -O -nostdlib -Bstatic --strip-all evdev.o string.o \
 		mem.o vsprintf.o $$(gcc -print-libgcc-file-name) \
 		--output evdev
@@ -34,7 +24,6 @@ evdev:evdev.c ../../../ulinux/arch
 
 clean:
 	-rm -f ../../../ulinux/arch
-	-rm -f cpp_evdev.c evdev.s evdev.o evdev \
-		cpp_mem.c mem.s mem.o \
-		cpp_string.c string.s string.o \
-		cpp_vsprintf.c vsprintf.s vsprintf.o
+	-rm -f cpp_evdev.c evdev.o evdev \
+		cpp_mem.c mem.o \
+		cpp_vsprintf.c vsprintf.o

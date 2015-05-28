@@ -3,14 +3,24 @@
 #include <ulinux/sysc.h>
 #include <ulinux/types.h>
 
+//------------------------------------------------------------------------------
+//ulinux namespace
+#define EINTR ULINUX_EINTR
+#define EAGAIN ULINUX_EAGAIN
+#define si ulinux_si
+#define u8 ulinux_u8
+#define exit(a) ulinux_sysc(exit,1,a)
+//------------------------------------------------------------------------------
+
+
 #include "so.h"
 
 void _start(void)
 {
-  k_u8 _dprintf_buf[DPRINTF_BUF_SZ];
-  dprintf_buf=&_dprintf_buf[0];
+  u8 buf[DPRINTF_BUF_SZ];
+  dprintf_buf=&buf[0];
 
   function_1(1,2);
   function_2(3,4);
-  sysc(exit_group,1,0);
+  exit(0);
 }
