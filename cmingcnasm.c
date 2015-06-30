@@ -11,6 +11,7 @@ compiler stuff
 /*------------------------------------------------------------------------------
 ulinux stuff
 ------------------------------------------------------------------------------*/
+#include <ulinux/compiler_misc.h>
 #include <ulinux/compiler_types.h>
 #include <ulinux/types.h>
 #include <ulinux/sysc.h>

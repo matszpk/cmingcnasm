@@ -294,7 +294,7 @@ static ulinux_u8 *string(ulinux_u8 *buf,ulinux_u8 *end,ulinux_u8 *s,
   ulinux_u64 len;
   if(!ulinux_strnlen(&len,s,spec.precision)) len=spec.precision;
 
-  if(!(spec.flags&LEFT))//it's RIGHT
+  if(!(spec.flags&LEFT))/*it's RIGHT*/
     while((ulinux_s16)len<spec.field_width--){
       if(buf<end) *buf=' ';
       ++buf;
@@ -977,8 +977,9 @@ ulinux_u64 ulinux_vsnprintf(ulinux_u8 *buf,ulinux_u64 sz,ulinux_u8 *fmt,
     }
   }
 
-  if(sz>0){/*set the terminating null byte*/
-    if(str<end) *str=0;else end[-1]=0;
+  if(sz>0){/*set the terminating null byte, if not truncated*/
+    /*if(str<end) *str=0;else end[-1]=0;<--how this ended up here???*/
+    if(str<end) *str=0;
   }
   return str-buf;/*the trailing null byte doesn't count towards the total*/
 }
