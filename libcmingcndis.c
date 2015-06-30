@@ -203,14 +203,7 @@ static s8 sop1(struct ctx *c)
 	return r;
 }
 
-static s8 vopc(struct ctx *c)
-{
-	s8 r=msg(c->msgs,"error:0x%lx:vopc unimplemented\n",c->i-c->m);
-	if(!r) r=CMINGCNDIS_ERR;
-	return r;
-}
-
-#define SCC_STR_BUF_SZ sizeof("exec_lo")
+#define SCC_STR_BUF_SZ sizeof("literal_constant")
 static void scc_str(u8 *d,u16 v)
 {
 	if(v<=103) snprintf(d,SCC_STR_BUF_SZ,"s%u",v);
@@ -240,6 +233,62 @@ static void scc_str(u8 *d,u16 v)
 	else if(v==254) strncpy(d,"lds_direct",SCC_STR_BUF_SZ);
 	else if(v==255) strncpy(d,"literal_constant",SCC_STR_BUF_SZ);
 	else if(256<=v&&v<=511) snprintf(d,SCC_STR_BUF_SZ,"v%u",v-256);
+}
+
+static s8 vopc(struct ctx *c)
+{
+	s8 r;
+	struct i_mnemonic_map *map;
+	u8 src0_str[SCC_STR_BUF_SZ];
+	u64 len;
+
+	u8 *i_str=(u8*)"\t%s %s=%s %s=v%u\n";
+	u32 i=le322cpu(*(u32*)(c->i));
+	u16 src0=i&0x1ff;
+	u8 op=(i>>17)&0xff;
+	u8 vsrc1=(i>>9)&0xff;
+
+	scc_str(&src0_str[0],src0); 
+	map=&i_mnemonic_maps[0];
+
+	loop{
+		if(map->mnemonic==0) break;
+
+		if((map->fmts&BIT(FMT_VOPC))&&(map->op_base==op))
+			break;
+		++map;
+	}
+
+	if(map->mnemonic==0){
+		r=msg(c->msgs,"error:0x%lx:vopc mnemonic not found\n",
+								c->i-c->m);
+		if(!r) r=CMINGCNDIS_ERR;
+		goto exit;
+	}
+
+	len=snprintf(0,0,i_str,map->mnemonic,fs_mnemonic[F_SRC0],src0_str,
+						fs_mnemonic[F_VSRC1],vsrc1);
+	if(len==0){
+		r=msg(c->msgs,"error:0x%lx:vopc:%s unable to evaluate the resulting instruction string\n",c->i-c->m,map->mnemonic);
+		if(!r) r=CMINGCNDIS_ERR;
+		goto exit;
+	}
+	r=src_grow(c,len+(*c->src_sz?0:1));/*don't miss the \0 at the start*/
+	if(r!=0) goto exit;
+
+	/*do swallow each time, except the first time, the \0*/
+	len=snprintf(&(*c->src)[*c->src_sz-len-(*c->src_sz?1:0)],len+1,i_str,
+        	map->mnemonic,fs_mnemonic[F_SRC0],src0_str,fs_mnemonic[F_VSRC1],
+									vsrc1);
+	if(len==0){
+		r=msg(c->msgs,"error:0x%lx:vopc:%s unable to print instruction string in source code buffer\n",
+						c->i-c->m,map->mnemonic);
+		if(!r) r=CMINGCNDIS_ERR;
+		goto exit;
+	}
+	r=sizeof(i);
+exit:
+	return r;
 }
 
 static s8 vop1(struct ctx *c)
@@ -570,11 +619,11 @@ static s8 i_dis(struct ctx *c)
 	s8 r;
 
 	u32 i0=le322cpu(*(u32*)(c->i));
-  
+ 
 	if((i0&0xff800000)==0xbf800000) r=sopp(c);
 	else if((i0&0xff800000)==0xbf000000) r=sopc(c);
 	else if((i0&0xff800000)==0xbe800000) r=sop1(c);
-	else if((i0&0xfe000000)==0x78000000) r=vopc(c);
+	else if((i0&0xfe000000)==0x7c000000) r=vopc(c);
 	else if((i0&0xfe000000)==0x7e000000) r=vop1(c);
 	else if((i0&0xfc000000)==0xd0000000) r=vop3(c);
 	else if((i0&0xfc000000)==0xa8000000) r=vintrp(c);
