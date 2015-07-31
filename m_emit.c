@@ -43,8 +43,9 @@ static s8 bytes_new(u8 bytes,s32 m_sz_max,u8 **m,s32 *m_sz,
 {
 	s32 new_len;
 	sl addr;
+	s8 r;
 
-	s8 r=0;
+	r=0;
 
 	if(!*m_sz){/*first allocation, then mmapping*/
 		new_len=bytes;
@@ -107,8 +108,9 @@ static s8 emit_64(u64 m_i_le,s32 m_sz_max,u8 **m,s32 *m_sz,
 							struct msgs_ctx *msgs)
 {
 	u64 *p;
+	s8 r;
 
-	s8 r=le64_new(m_sz_max,m,m_sz,msgs);
+	r=le64_new(m_sz_max,m,m_sz,msgs);
 
 	if(r!=0) goto exit;
 
@@ -122,8 +124,9 @@ static s8 emit_32(u32 m_i_le,s32 m_sz_max,u8 **m,s32 *m_sz,
 							struct msgs_ctx *msgs)
 {
 	u32 *p;
+	s8 r;
 
-	s8 r=le32_new(m_sz_max,m,m_sz,msgs);
+	r=le32_new(m_sz_max,m,m_sz,msgs);
 
 	if(r!=0) goto exit;
 
@@ -137,8 +140,9 @@ exit:
 static struct i_f *f_get(struct i *i,u8 f)
 {
 	struct i_f *r;
+	u8 cur_f;
 
-	u8 cur_f=0;
+	cur_f=0;
 
 	loop{
 		if(cur_f>=FS_MAX) break;
@@ -154,8 +158,11 @@ static struct i_f *f_get(struct i *i,u8 f)
 /*mubuf*/
 static s8 mubuf_fs_chk(struct i *i,struct msgs_ctx *msgs)
 {
-	s8 r=0;
-	u8 i_f=0;
+	s8 r;
+	u8 i_f;
+
+	r=0;
+	i_f=0;
 
 	loop{
 		if(i_f>=FS_MAX) break;
@@ -315,8 +322,11 @@ exit:
 /*s_waitcnt*/
 static s8 s_waitcnt_fs_chk(struct i *i,struct msgs_ctx *msgs)
 {
-	s8 r=0;
-	u8 i_f=0;
+	s8 r;
+	u8 i_f;
+
+	r=0;
+	i_f=0;
 
 	loop{
 		if(i_f>=FS_MAX) break;
@@ -410,8 +420,9 @@ static s8 s_endpgm(struct i *i,s32 m_sz_max,u8 **m,s32 *m_sz,
 							struct msgs_ctx *msgs)
 {
 	u32 m_i;
+	s8 r;
 
-	s8 r=0;
+	r=0;
 
 	if(i->fs[0].f!=F_INVALID){
 		r=msg(msgs,"error:machine emit:s_endpgm:%s:%d:pp(%d):no field are allowed for this instruction\n",
@@ -435,7 +446,9 @@ exit:
 static s8 sopp(struct i *i,s32 m_sz_max,u8 **m,s32 *m_sz,
 							struct msgs_ctx *msgs)
 {
-	s8 r=0;
+	s8 r;
+
+	r=0;
 
 	switch(i->map->op_base){
 	case 1:
@@ -457,8 +470,11 @@ static s8 sopp(struct i *i,s32 m_sz_max,u8 **m,s32 *m_sz,
 /*export*/
 static s8 export_fs_chk(struct i *i,struct msgs_ctx *msgs)
 {
-	s8 r=0;
-	u8 i_f=0;
+	s8 r;
+	u8 i_f;
+
+	r=0;
+	i_f=0;
 
 	loop{
 		if(i_f>=FS_MAX) break;
@@ -618,8 +634,11 @@ exit:
 i->map->mnemonic,i->src_pathname,i->src_l,i->l,##__VA_ARGS__)
 static s8 vop3a_fs_chk(struct i *i,struct msgs_ctx *msgs)
 {
-	s8 r=0;
-	u8 i_f=0;
+	s8 r;
+	u8 i_f;
+
+	r=0;
+	i_f=0;
 
 	loop{
 		if(i_f>=FS_MAX) break;
@@ -653,8 +672,9 @@ static s8 vop3a(struct i *i,s32 m_sz_max,u8 **m,s32 *m_sz,
 {
 	u64 m_i;
 	struct i_f *f;
+	s8 r;
 
-	s8 r=vop3a_fs_chk(i,msgs);
+	r=vop3a_fs_chk(i,msgs);
 
 	if(r) goto exit;
 
@@ -726,8 +746,11 @@ exit:
 i->map->mnemonic,i->src_pathname,i->src_l,i->l,##__VA_ARGS__)
 static s8 vop1_fs_chk(struct i *i,struct msgs_ctx *msgs)
 {
-	s8 r=0;
-	u8 i_f=0;
+	s8 r;
+	u8 i_f;
+
+	r=0;
+	i_f=0;
 
 	loop{
 		if(i_f>=FS_MAX) break;
@@ -755,8 +778,9 @@ static s8 vop1(struct i *i,s32 m_sz_max,u8 **m,s32 *m_sz,
 {
 	u32 m_i;
 	struct i_f *f;
+	s8 r;
 
-	s8 r=vop1_fs_chk(i,msgs);
+	r=vop1_fs_chk(i,msgs);
 
 	if(r) goto exit;
 
@@ -795,8 +819,11 @@ exit:
 i->map->mnemonic,i->src_pathname,i->src_l,i->l,##__VA_ARGS__)
 static s8 vop2_fs_chk(struct i *i,struct msgs_ctx *msgs)
 {
-	s8 r=0;
-	u8 i_f=0;
+	s8 r;
+	u8 i_f;
+
+	r=0;
+	i_f=0;
 
 	loop{
 		if(i_f>=FS_MAX) break;
@@ -825,8 +852,9 @@ static s8 vop2(struct i *i,s32 m_sz_max,u8 **m,s32 *m_sz,
 {
 	u32 m_i;
 	struct i_f *f;
+	s8 r;
 
-	s8 r=vop2_fs_chk(i,msgs);
+	r=vop2_fs_chk(i,msgs);
 
 	if(r) goto exit;
 
@@ -868,8 +896,11 @@ exit:
 #define VOP3A 1
 static s8 vop1_vop3a_select(struct i *i)
 {
-	s8 r=VOP1;
-	u8 i_f=0;
+	s8 r;
+	u8 i_f;
+
+	r=VOP1;
+	i_f=0;
 
 	loop{
 		if(i_f>=FS_MAX) break;
@@ -899,7 +930,9 @@ static s8 vop1_vop3a_select(struct i *i)
 static s8 vop1_vop3a(struct i *i,s32 m_sz_max,u8 **m,s32 *m_sz,
 							struct msgs_ctx *msgs)
 {
-	s8 r=vop1_vop3a_select(i);
+	s8 r;
+
+	r=vop1_vop3a_select(i);
 
 	if(r<0) goto exit;
 
@@ -923,8 +956,11 @@ exit:
 #define VOP2  0
 static s8 vop2_vop3a_select(struct i *i)
 {
-	s8 r=VOP2;
-	u8 i_f=0;
+	s8 r;
+	u8 i_f;
+
+	r=VOP2;
+	i_f=0;
 
 	loop{
 		if(i_f>=FS_MAX) break;
@@ -955,7 +991,9 @@ static s8 vop2_vop3a_select(struct i *i)
 static s8 vop2_vop3a(struct i *i,s32 m_sz_max,u8 **m,s32 *m_sz,
 							struct msgs_ctx *msgs)
 {
-	s8 r=vop2_vop3a_select(i);
+	s8 r;
+
+	r=vop2_vop3a_select(i);
 
 	if(r<0) goto exit;
 
@@ -977,7 +1015,9 @@ exit:
 static s8 i_encode(struct i *i,s32 m_sz_max,u8 **m,s32 *m_sz,
 							struct msgs_ctx *msgs)
 {
-	s8 r=0;
+	s8 r;
+
+	r=0;
 
 	switch(i->map->fmts){
 	case BIT(FMT_MUBUF):
@@ -1007,8 +1047,9 @@ s8 m_emit(struct i *is,s32 is_last,s32 m_sz_max,u8 **m,s32 *m_sz,
 							struct msgs_ctx *msgs)
 {
 	s32 i;
+	s8 r;
 
-	s8 r=0;
+	r=0;
 
 	*m=0;
 	*m_sz=0;

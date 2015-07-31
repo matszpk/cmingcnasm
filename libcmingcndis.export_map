@@ -1,4 +1,7 @@
 {
-global: cmingcndis_dis;
-local: *;
+global:
+	cmingcndis_static_init;
+	cmingcndis_dis;
+local:
+	*;
 };

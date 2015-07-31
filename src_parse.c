@@ -40,7 +40,9 @@ private
 ------------------------------------------------------------------------------*/
 #include "msgs.h"
 #include "is.h"
+#define SRC_PARSE_C
 #include "libcmingcnasm-private.h"
+#undef SRC_PARSE_C
 /*----------------------------------------------------------------------------*/
 
 #define LAST_LINE_PROCESSING 0x01
@@ -77,8 +79,9 @@ c->src_pathname,c->src_l,c->l,addr)
 static s8 i_new(struct ctx *c)
 {
 	sl addr;
+	s8 r;
 
-	s8 r=0;
+	r=0;
 
 	if(c->is_last==-1){/*first allocation, then mmapping*/
 	addr=mmap(sizeof(*c->is),PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,
@@ -89,8 +92,11 @@ static s8 i_new(struct ctx *c)
 			goto exit;
 		}
 	}else{/*grow mapping*/
-		s32 old_len=(c->is_last+1)*sizeof(*c->is);
-		s32 new_len=old_len+sizeof(*c->is);
+		s32 old_len;
+		s32 new_len;
+
+		old_len=(c->is_last+1)*sizeof(*c->is);
+		new_len=old_len+sizeof(*c->is);
 
 		addr=mremap(c->is,old_len,new_len,MREMAP_MAYMOVE);
 		if(ISERR(addr)){
@@ -131,7 +137,9 @@ s8 is_unmap(struct i *is,s32 is_last,struct msgs_ctx *msgs)
 
 static u8 is_blank(u8 *p)
 {
-	u8 r=0;
+	u8 r;
+
+	r=0;
 
 	if(*p==' '||*p=='\t') r=1;
 	return r;
@@ -199,10 +207,11 @@ exit:
 
 static s8 l_kw_i(struct ctx *c)
 {
-	s8 r=0;
-
+	s8 r;
 	struct i *i;
 	u64 i_sz;
+
+	r=0;
 
 	/*a label may have already instanciated an instruction*/
 	if(!(c->flgs&HAVE_LABEL)){
@@ -236,14 +245,17 @@ exit:
 static s8 f_scc(struct ctx *c,u8 f,struct i_f *i_f,u8 *val)
 {
 	s8 r2;
+	s8 r0;
+	u64 val_sz;
 
-	s8 r0=CMINGCNASM_ERR;/*in error state by default*/
-	u64 val_sz=c->kw_e-val+1;
+	r0=CMINGCNASM_ERR;/*in error state by default*/
+	val_sz=c->kw_e-val+1;
 
 	if(val_sz>2&&val[0]=='s'){
 		u8 sgpr_idx;
+		u8 r1;
 
-		u8 r1=dec2u8(&sgpr_idx,val+1,c->kw_e);
+		r1=dec2u8(&sgpr_idx,val+1,c->kw_e);
 
 		if(r1){
 			if(sgpr_idx>103){
@@ -290,8 +302,9 @@ static s8 f_scc(struct ctx *c,u8 f,struct i_f *i_f,u8 *val)
 	if(val_sz>=cs_n("ttmp")+1){
 		if(!strncmp(val,"ttmp",cs_n("ttmp"))){
 			u8 ttmp_idx;
+			u8 r1;
 
-			u8 r1=dec2u8(&ttmp_idx,val+cs_n("ttmp"),c->kw_e);
+			r1=dec2u8(&ttmp_idx,val+cs_n("ttmp"),c->kw_e);
 
 			if(r1){
 				if(ttmp_idx>11){
@@ -326,8 +339,9 @@ static s8 f_scc(struct ctx *c,u8 f,struct i_f *i_f,u8 *val)
 
 	if(val_sz==1||val_sz==2){
 		u8 integer;
+		u8 r1;
 
-		u8 r1=dec2u8(&integer,val,c->kw_e);
+		r1=dec2u8(&integer,val,c->kw_e);
 
 		if(r1){
 			if(integer>64){
@@ -342,8 +356,9 @@ static s8 f_scc(struct ctx *c,u8 f,struct i_f *i_f,u8 *val)
 	}
 	if(val[0]=='-'&&(val_sz==2||val_sz==3)){
 		u8 ninteger;
+		u8 r1;
 
-		u8 r1=dec2u8(&ninteger,val+1,c->kw_e);
+		r1=dec2u8(&ninteger,val+1,c->kw_e);
 
 		if(r1){
 			if(ninteger>64||ninteger==0){
@@ -418,8 +433,9 @@ static s8 f_scc(struct ctx *c,u8 f,struct i_f *i_f,u8 *val)
 	}
 	if(val_sz>=2&&val[0]=='v'){
 		u8 vgpr_idx;
+		u8 r1;
 
-		u8 r1=dec2u8(&vgpr_idx,val+1,c->kw_e);
+		r1=dec2u8(&vgpr_idx,val+1,c->kw_e);
 
 		if(r1){
 			i_f->val=(u16)vgpr_idx+256;
@@ -438,8 +454,9 @@ exit:
 static s8 f_bool(struct ctx *c,u8 f,struct i_f *i_f,u8 *val)
 {
 	u8 val_sz=c->kw_e-val+1;
+	s8 r0;
 
-	s8 r0=0;
+	r0=0;
 
 	if(val_sz!=1){r0=CMINGCNASM_ERR;goto exit;}
 
@@ -458,10 +475,13 @@ exit:
 static s8 f_vgpr(struct ctx *c,u8 f,struct i_f *i_f,u8 *val)
 {
 	u8 vgpr_idx;
+  	u64 val_sz;
+	s8 r0;
+	u8 r1;
 
-  	u64 val_sz=c->kw_e-val+1;
-	s8 r0=0;
-	u8 r1=dec2u8(&vgpr_idx,val+1,c->kw_e);
+  	val_sz=c->kw_e-val+1;
+	r0=0;
+	r1=dec2u8(&vgpr_idx,val+1,c->kw_e);
 
 	if(val_sz<2||val[0]!='v'){
 		r0=MSG("has an unknown vgpr value\n");
@@ -485,9 +505,11 @@ static s8 f_sgpr_mod_4(struct ctx *c,u8 f,struct i_f *i_f,u8 *val)
 {
 	u8 sgpr_idx;
 	u8 r1;
+	s8 r0;
+	u64 val_sz;
 
-	s8 r0=0;
-	u64 val_sz=c->kw_e-val+1;
+	r0=0;
+	val_sz=c->kw_e-val+1;
 
 	if(val_sz<2&&val[0]!='s'){
 		r0=MSG("has an unknown sgpr value\n");
@@ -523,9 +545,11 @@ exit:
 static s8 f_u16(struct ctx *c,u8 f,struct i_f *i_f,u8 *val)
 {
 	u8 r1;
+	s8 r0;
+	u64 val_sz;
 
-	s8 r0=0;
-	u64 val_sz=c->kw_e-val+1;
+	r0=0;
+	val_sz=c->kw_e-val+1;
 
 	if(val_sz>=3){
 		if(val[0]=='0'&&val[1]=='b'){/*binary value*/
@@ -560,14 +584,18 @@ exit:
 
 static s8 f_tgt(struct ctx *c,u8 f,struct i_f *i_f,u8 *val)
 {
-	s8 r0=CMINGCNASM_ERR;/*in error state by default*/
-	u64 val_sz=c->kw_e-val+1;
+	s8 r0;
+	u64 val_sz;
+
+	r0=CMINGCNASM_ERR;/*in error state by default*/
+	val_sz=c->kw_e-val+1;
 
 	if(val_sz==cs_n("mrt")+1){
 		if(!strncmp(val,"mrt",cs_n("mrt"))){
 			u8 mrt_idx;
+			u8 r1;
 
-			u8 r1=dec2u8(&mrt_idx,val+cs_n("mrt"),c->kw_e);
+			r1=dec2u8(&mrt_idx,val+cs_n("mrt"),c->kw_e);
 
 			if(r1){
 				if(mrt_idx>=8){
@@ -597,8 +625,9 @@ static s8 f_tgt(struct ctx *c,u8 f,struct i_f *i_f,u8 *val)
 	if(val_sz==cs_n("pos")+1){
 		if(!strncmp(val,"pos",cs_n("pos"))){
 			u8 pos_idx;
+			u8 r1;
 
-			u8 r1=dec2u8(&pos_idx,val+cs_n("pos"),c->kw_e);
+			r1=dec2u8(&pos_idx,val+cs_n("pos"),c->kw_e);
 
 			if(r1){
 				if(pos_idx>=4){
@@ -618,8 +647,9 @@ static s8 f_tgt(struct ctx *c,u8 f,struct i_f *i_f,u8 *val)
 	if(val_sz>=cs_n("param")+1){
 		if(!strncmp(val,"param",cs_n("param"))){
 			u8 param_idx;
+			u8 r1;
 
-			u8 r1=dec2u8(&param_idx,val+cs_n("param"),c->kw_e);
+			r1=dec2u8(&param_idx,val+cs_n("param"),c->kw_e);
 
 			if(r1){
 				if(param_idx>=32){
@@ -646,62 +676,65 @@ exit:
 #undef MSG
 
 static s8 (*fs_val_parser[F_INVALID])(struct ctx *c,u8 f,struct i_f *i_f,
-								u8 *val)={
-0,           /*F_SSRC0*/
-0,           /*F_SSRC1*/
-0,           /*F_SDST*/
-0,           /*F_SIMM16*/
-0,           /*F_OFFSET*/
-0,           /*F_IMM*/
-0,           /*F_SBASE*/
-f_scc,       /*F_SRC0*/
-f_scc,       /*F_SRC1*/
-f_scc,       /*F_SRC2*/
-f_vgpr,      /*F_VSRC0*/
-f_vgpr,      /*F_VSRC1*/
-f_vgpr,      /*F_VSRC2*/
-f_vgpr,      /*F_VSRC3*/
-f_vgpr,      /*F_VDST*/
-f_u16,       /*F_ABS*/
-f_bool,      /*F_CLAMP*/
-f_u16,       /*F_OMOD*/
-f_u16,       /*F_NEG*/
-0,           /*F_VSRC*/
-0,           /*F_ATTRCHAN*/
-0,           /*F_ATTR*/
-0,           /*F_OFFSET0*/
-0,           /*F_OFFSET1*/
-0,           /*F_GDS*/
-0,           /*F_ADDR*/
-0,           /*F_DATA0*/
-0,           /*F_DATA1*/
-f_bool,      /*F_OFFEN*/
-f_bool,      /*F_IDXEN*/
-0,           /*F_GLC*/
-0,           /*F_ADDR64*/
-0,           /*F_LDS*/
-0,           /*F_VADDR*/
-f_vgpr,      /*F_VDATA*/
-f_sgpr_mod_4,/*F_SRSRC*/
-0,           /*F_SLC*/
-0,           /*F_TFE*/
-f_scc,       /*F_SOFFSET*/
-0,           /*F_DFMT*/
-0,           /*F_NFMT*/
-0,           /*F_DMASK*/
-0,           /*F_UNORM*/
-0,           /*F_DA*/
-0,           /*F_R128*/
-0,           /*F_LWE*/
-0,           /*F_SSAMP*/
-f_u16,       /*F_EN*/
-f_tgt,       /*F_TGT*/
-f_bool,      /*F_COMPR*/
-f_bool,      /*F_DONE*/
-f_bool,      /*F_VM*/
-f_u16,       /*F_VM_CNT*/
-f_u16,       /*F_EXP_CNT*/
-f_u16        /*F_LGKM_CNT*/
+								u8 *val);
+
+void fs_val_parser_init(void)
+{
+fs_val_parser[F_SSRC0]=0;
+fs_val_parser[F_SSRC1]=0;
+fs_val_parser[F_SDST]=0;
+fs_val_parser[F_SIMM16]=0;
+fs_val_parser[F_OFFSET]=0;
+fs_val_parser[F_IMM]=0;
+fs_val_parser[F_SBASE]=0;
+fs_val_parser[F_SRC0]=f_scc;
+fs_val_parser[F_SRC1]=f_scc;
+fs_val_parser[F_SRC2]=f_scc;
+fs_val_parser[F_VSRC0]=f_vgpr;
+fs_val_parser[F_VSRC1]=f_vgpr;
+fs_val_parser[F_VSRC2]=f_vgpr;
+fs_val_parser[F_VSRC3]=f_vgpr;
+fs_val_parser[F_VDST]=f_vgpr;
+fs_val_parser[F_ABS]=f_u16;
+fs_val_parser[F_CLAMP]=f_bool;
+fs_val_parser[F_OMOD]=f_u16;
+fs_val_parser[F_NEG]=f_u16;
+fs_val_parser[F_VSRC]=0;
+fs_val_parser[F_ATTRCHAN]=0;
+fs_val_parser[F_ATTR]=0;
+fs_val_parser[F_OFFSET0]=0;
+fs_val_parser[F_OFFSET1]=0;
+fs_val_parser[F_GDS]=0;
+fs_val_parser[F_ADDR]=0;
+fs_val_parser[F_DATA0]=0;
+fs_val_parser[F_DATA1]=0;
+fs_val_parser[F_OFFEN]=f_bool;
+fs_val_parser[F_IDXEN]=f_bool;
+fs_val_parser[F_GLC]=0;
+fs_val_parser[F_ADDR64]=0;
+fs_val_parser[F_LDS]=0;
+fs_val_parser[F_VADDR]=0;
+fs_val_parser[F_VDATA]=f_vgpr;
+fs_val_parser[F_SRSRC]=f_sgpr_mod_4;
+fs_val_parser[F_SLC]=0;
+fs_val_parser[F_TFE]=0;
+fs_val_parser[F_SOFFSET]=f_scc;
+fs_val_parser[F_DFMT]=0;
+fs_val_parser[F_NFMT]=0;
+fs_val_parser[F_DMASK]=0;
+fs_val_parser[F_UNORM]=0;
+fs_val_parser[F_DA]=0;
+fs_val_parser[F_R128]=0;
+fs_val_parser[F_LWE]=0;
+fs_val_parser[F_SSAMP]=0;
+fs_val_parser[F_EN]=f_u16;
+fs_val_parser[F_TGT]=f_tgt;
+fs_val_parser[F_COMPR]=f_bool;
+fs_val_parser[F_DONE]=f_bool;
+fs_val_parser[F_VM]=f_bool;
+fs_val_parser[F_VM_CNT]=f_u16;
+fs_val_parser[F_EXP_CNT]=f_u16;
+fs_val_parser[F_LGKM_CNT]=f_u16;
 };
 
 #define MSG(x,...) msg(c->msgs,"error:source parse:%s:%d:pp(%d:%d):" x,\
@@ -712,8 +745,9 @@ static s8 l_kw_f(struct ctx *c)
 	u64 mnemonic_sz;
 	u8 *mnemonic_e;
 	u8 f;
+	s8 r;
 
-	s8 r=0;
+	r=0;
 
 	/*make room for a new field in the instruction*/
 	i_f=0;
@@ -795,8 +829,9 @@ static s8 pp(struct ctx *c)
 	u8 r1;
 	u8 *d;
 	u8 *d_e;
+	s8 r0;
 
-	s8 r0=0;
+	r0=0;
 
 	/*skip white space(s) till the source file line number*/
 	p=c->p+1;/*skip '#'*/
@@ -880,8 +915,9 @@ s8 src_parse(u8 *src,s32 src_sz,u8 *src_pathname_default,struct i **is,
 					s32 *is_last,struct msgs_ctx *msgs)
 {
 	struct ctx c;
+	s8 r;
 
-	s8 r=0;
+	r=0;
 
 	c.src=src;
 	c.src_sz=src_sz;

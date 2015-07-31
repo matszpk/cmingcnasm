@@ -46,23 +46,28 @@ u8 *g_dprintf_buf;
 #define SRC_PATHNAME_DEFAULT "source.sgcn"
 #define M_PATHNAME_DEFAULT "machine.bgcn"
 
-static u8 *src_pathname=(u8*)SRC_PATHNAME_DEFAULT;
-static si src_fd=-1;
-static u8 *src=0;
-static s32 src_sz=0;
+static u8 *src_pathname;
+static si src_fd;
+static u8 *src;
+static s32 src_sz;
 
-static u8 *m_pathname=(u8*)M_PATHNAME_DEFAULT;
-static si m_fd=-1;
-static u8 *m=0;
-static s32 m_sz=0;
-static s32 m_sz_max=1024*1024;/*default to 1MiB*/
+static u8 *m_pathname;
+static si m_fd;
+static u8 *m;
+static s32 m_sz;
+static s32 m_sz_max;
 
 static void args_parse(sl argc,u8 **argv_envp)
 {
-	u8 dash_options_enabled=1;
-	u8 src_pathname_missing=1;
-	u8 m_pathname_missing=1;
-	sl arg=1;/*skip program pathname*/
+	u8 dash_options_enabled;
+	u8 src_pathname_missing;
+	u8 m_pathname_missing;
+	sl arg;
+
+	dash_options_enabled=1;
+	src_pathname_missing=1;
+	m_pathname_missing=1;
+	arg=1;/*skip program pathname*/
 
 	loop{
 		if(arg+1>argc) break;
@@ -167,6 +172,20 @@ static void m_save(void)
 	}
 }
 
+static void globals_init()
+{
+	src_pathname=(u8*)SRC_PATHNAME_DEFAULT;
+	src_fd=-1;
+	src=0;
+	src_sz=0;
+
+	m_pathname=(u8*)M_PATHNAME_DEFAULT;
+	m_fd=-1;
+	m=0;
+	m_sz=0;
+	m_sz_max=1024*1024;/*default to 1MiB*/
+}
+
 /******************************************************************************/
 void ulinux_start(sl argc,u8 **argv_envp)
 {
@@ -177,6 +196,7 @@ void ulinux_start(sl argc,u8 **argv_envp)
 	static u8 dprintf_buf[DPRINTF_BUF_SZ];
 	g_dprintf_buf=dprintf_buf;
 #endif
+	globals_init();
 	args_parse(argc,argv_envp);
 	src_mmap();
 

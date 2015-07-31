@@ -41,9 +41,7 @@ public
 private
 ------------------------------------------------------------------------------*/
 #include "msgs.h"
-#define IS_C
 #include "is.h"
-#undef IS_C
 /*----------------------------------------------------------------------------*/
 
 #define cs_n(x) sizeof(x)-1
@@ -62,10 +60,13 @@ struct ctx{
 static s8 src_grow(struct ctx *c,sl len)
 {
 	sl addr;
+	s8 r;
+	s32 old_len;
+	s32 new_len;
 
-	s8 r=0;
-	s32 old_len=*c->src_sz;
-	s32 new_len=old_len+len;
+	r=0;
+	old_len=*c->src_sz;
+	new_len=old_len+len;
 
 	if(old_len==0){/*first allocation, then mmapping*/
 		addr=mmap((sl)new_len,PROT_READ|PROT_WRITE,MAP_PRIVATE
@@ -92,9 +93,11 @@ exit:
 
 static s8 src_unmap(struct ctx *c)
 {
+	sl r;
+
 	if(*c->src_sz==0) return 0;/*nothing to unmap*/
 
-	sl r=munmap(*c->src,(sl)(*c->src_sz));
+	r=munmap(*c->src,(sl)(*c->src_sz));
 	if(ISERR(r)){
 		r=(sl)msg(c->msgs,"error:munmap(%ld):unable to unmap source code buffer\n",
 									r);
@@ -106,10 +109,13 @@ static s8 src_unmap(struct ctx *c)
 static s8 sopp(struct ctx *c)
 {
 	s8 r;
+	u32 i;
+	u8 op;
+	struct i_mnemonic_map *map;
 
-	u32 i=le322cpu(*(u32*)(c->i));
-	u8 op=(i>>16)&0x7f;
-	struct i_mnemonic_map *map=&i_mnemonic_maps[0];
+	i=le322cpu(*(u32*)(c->i));
+	op=(i>>16)&0x7f;
+	map=&i_mnemonic_maps[0];
 
 	loop{
 		if(map->mnemonic==0) break;
@@ -128,11 +134,17 @@ static s8 sopp(struct ctx *c)
 
 	if(op==12){
 		/*the s_waitcnt sopp has 3 subfields instead af 1 simm16 field*/
-		u8 vm_cnt=i&0xf;
-		u8 exp_cnt=(i>>4)&0x7;
-		u8 lgkm_cnt=(i>>8)&0x1f;
-		u8 *i_str=(u8*)"\t%s %s=%u %s=%u %s=%u\n";
-		u64 len=snprintf(0,0,i_str,map->mnemonic,fs_mnemonic[F_VM_CNT],
+		u8 vm_cnt;
+		u8 exp_cnt;
+		u8 lgkm_cnt;
+		u8 *i_str;
+		u64 len;
+
+		vm_cnt=i&0xf;
+		exp_cnt=(i>>4)&0x7;
+		lgkm_cnt=(i>>8)&0x1f;
+		i_str=(u8*)"\t%s %s=%u %s=%u %s=%u\n";
+		len=snprintf(0,0,i_str,map->mnemonic,fs_mnemonic[F_VM_CNT],
 					vm_cnt,fs_mnemonic[F_EXP_CNT],exp_cnt,
 					fs_mnemonic[F_LGKM_CNT],lgkm_cnt);
 
@@ -159,9 +171,13 @@ static s8 sopp(struct ctx *c)
 			goto exit;
 		}
 	}else{
-		u16 simm16=i&0xffff;
-		u8 *i_str=(u8*)"\t%s %s=%u\n";
-		u64 len=snprintf(0,0,i_str,map->mnemonic,fs_mnemonic[F_SIMM16],
+		u16 simm16;
+		u8 *i_str;
+		u64 len;
+
+		simm16=i&0xffff;
+		i_str=(u8*)"\t%s %s=%u\n";
+		len=snprintf(0,0,i_str,map->mnemonic,fs_mnemonic[F_SIMM16],
 									simm16);
 
 		if(len==0){
@@ -191,14 +207,18 @@ exit:
 
 static s8 sopc(struct ctx *c)
 {
-	s8 r=msg(c->msgs,"error:0x%lx:sopc unimplemented\n",c->i-c->m);
+	s8 r;
+
+	r=msg(c->msgs,"error:0x%lx:sopc unimplemented\n",c->i-c->m);
 	if(!r) r=CMINGCNDIS_ERR;
 	return r;
 }
 
 static s8 sop1(struct ctx *c)
 {
-	s8 r=msg(c->msgs,"error:0x%lx:sop1 unimplemented\n",c->i-c->m);
+	s8 r;
+
+	r=msg(c->msgs,"error:0x%lx:sop1 unimplemented\n",c->i-c->m);
 	if(!r) r=CMINGCNDIS_ERR;
 	return r;
 }
@@ -350,21 +370,24 @@ exit:
 
 static s8 vop3(struct ctx *c)
 {
-	s8 r=msg(c->msgs,"error:0x%lx:vop3 unimplemented\n",c->i-c->m);
+	s8 r;
+	r=msg(c->msgs,"error:0x%lx:vop3 unimplemented\n",c->i-c->m);
 	if(!r) r=CMINGCNDIS_ERR;
 	return r;
 }
 
 static s8 vintrp(struct ctx *c)
 {
-	s8 r=msg(c->msgs,"error:0x%lx:vintrp unimplemented\n",c->i-c->m);
+	s8 r;
+	r=msg(c->msgs,"error:0x%lx:vintrp unimplemented\n",c->i-c->m);
 	if(!r) r=CMINGCNDIS_ERR;
 	return r;
 }
 
 static s8 ds(struct ctx *c)
 {
-	s8 r=msg(c->msgs,"error:0x%lx:ds unimplemented\n",c->i-c->m);
+	s8 r;
+	r=msg(c->msgs,"error:0x%lx:ds unimplemented\n",c->i-c->m);
 	if(!r) r=CMINGCNDIS_ERR;
 	return r;
 }
@@ -374,21 +397,35 @@ static s8 mubuf(struct ctx *c)
 	s8 r;
 	struct i_mnemonic_map *map;
 	u64 len;
+	u8 *i_str;
+	u64 i;
+	u16 offset;
+	u8 offen;
+	u8 idxen;
+	u8 glc;
+	u8 addr64;
+	u8 lds;
+	u8 op;
+	u8 vaddr;
+	u8 vdata;
+	u8 srsrc;
+	u8 slc;
+	u8 tfe;
 
-	u8 *i_str=(u8*)"\t%s %s=%u %s=%u %s=%u %s=%u %s=%u %s=%u %s=v%u %s=v%u %s=s%u %s=%u %s=%u\n";
-	u64 i=le642cpu(*(u64*)(c->i));
-	u16 offset=i&0xfff;
-	u8 offen=(i>>12)&1;
-	u8 idxen=(i>>13)&1;
-	u8 glc=(i>>14)&1;
-	u8 addr64=(i>>15)&1;
-	u8 lds=(i>>16)&1;
-	u8 op=(i>>18)&0xef;
-	u8 vaddr=(i>>32)&0xff;
-	u8 vdata=(i>>40)&0xff;
-	u8 srsrc=(i>>48)&0x1f;
-	u8 slc=(i>>54)&1;
-	u8 tfe=(i>>55)&1;
+	i_str=(u8*)"\t%s %s=%u %s=%u %s=%u %s=%u %s=%u %s=%u %s=v%u %s=v%u %s=s%u %s=%u %s=%u\n";
+	i=le642cpu(*(u64*)(c->i));
+	offset=i&0xfff;
+	offen=(i>>12)&1;
+	idxen=(i>>13)&1;
+	glc=(i>>14)&1;
+	addr64=(i>>15)&1;
+	lds=(i>>16)&1;
+	op=(i>>18)&0xef;
+	vaddr=(i>>32)&0xff;
+	vdata=(i>>40)&0xff;
+	srsrc=(i>>48)&0x1f;
+	slc=(i>>54)&1;
+	tfe=(i>>55)&1;
 
 	map=&i_mnemonic_maps[0];
 	loop{
@@ -440,14 +477,18 @@ exit:
 
 static s8 mtbuf(struct ctx *c)
 {
-	s8 r=msg(c->msgs,"error:0x%lx:mtbuf unimplemented\n",c->i-c->m);
+	s8 r;
+
+	r=msg(c->msgs,"error:0x%lx:mtbuf unimplemented\n",c->i-c->m);
 	if(!r) r=CMINGCNDIS_ERR;
 	return r;
 }
 
 static s8 mimg(struct ctx *c)
 {
-	s8 r=msg(c->msgs,"error:0x%lx:mimg unimplemented\n",c->i-c->m);
+	s8 r;
+
+	r=msg(c->msgs,"error:0x%lx:mimg unimplemented\n",c->i-c->m);
 	if(!r) r=CMINGCNDIS_ERR;
 	return r;
 }
@@ -465,11 +506,15 @@ static s8 export(struct ctx *c)
 	struct i_mnemonic_map *map;
 	u8 tgt_str[sizeof("paramXX")];
 	u64 len;
+	u8 *i_str;
+	u64 i;
+	u8 en;
+	u8 tgt;
 
-	u8 *i_str=(u8*)"\t%s %s=0x%x %s=%s %s=%u %s=%u %s=%u %s=v%u %s=v%u %s=v%u %s=v%u\n";
-	u64 i=le642cpu(*(u64*)(c->i));
-	u8 en=i&0xf;
-	u8 tgt=(i>>4)&0x3f;
+	i_str=(u8*)"\t%s %s=0x%x %s=%s %s=%u %s=%u %s=%u %s=v%u %s=v%u %s=v%u %s=v%u\n";
+	i=le642cpu(*(u64*)(c->i));
+	en=i&0xf;
+	tgt=(i>>4)&0x3f;
 
 	if(tgt<=7)
 		snprintf(&tgt_str[0],sizeof("paramXX"),"mrt%u",tgt);
@@ -538,21 +583,27 @@ exit:
 
 static s8 smrd(struct ctx *c)
 {
-	s8 r=msg(c->msgs,"error:0x%lx:smrd unimplemented\n",c->i-c->m);
+	s8 r;
+
+	r=msg(c->msgs,"error:0x%lx:smrd unimplemented\n",c->i-c->m);
 	if(!r) r=CMINGCNDIS_ERR;
 	return r;
 }
 
 static s8 sopk(struct ctx *c)
 {
-	s8 r=msg(c->msgs,"error:0x%lx:sopk unimplemented\n",c->i-c->m);
+	s8 r;
+
+	r=msg(c->msgs,"error:0x%lx:sopk unimplemented\n",c->i-c->m);
 	if(!r) r=CMINGCNDIS_ERR;
 	return r;
 }
 
 static s8 sop2(struct ctx *c)
 {
-	s8 r=msg(c->msgs,"error:0x%lx:sop2 unimplemented\n",c->i-c->m);
+	s8 r;
+
+	r=msg(c->msgs,"error:0x%lx:sop2 unimplemented\n",c->i-c->m);
 	if(!r) r=CMINGCNDIS_ERR;
 	return r;
 }
@@ -563,13 +614,19 @@ static s8 vop2(struct ctx *c)
 	u8 src0_str[SCC_STR_BUF_SZ];
 	struct i_mnemonic_map *map;
 	u64 len;
+  	u8 *i_str;
+	u32 i;
+	u16 src0;
+	u8 vsrc1;
+	u8 vdst;
+	u8 op;
 
-  	u8 *i_str=(u8*)"\t%s %s=%s %s=v%u %s=v%u\n";
-	u32 i=le322cpu(*(u32*)(c->i));
-	u16 src0=i&0x1ff;
-	u8 vsrc1=(i>>0)&0xff;
-	u8 vdst=(i>>17)&0xff;
-	u8 op=(i>>25)&0x3f;
+  	i_str=(u8*)"\t%s %s=%s %s=v%u %s=v%u\n";
+	i=le322cpu(*(u32*)(c->i));
+	src0=i&0x1ff;
+	vsrc1=(i>>0)&0xff;
+	vdst=(i>>17)&0xff;
+	op=(i>>25)&0x3f;
 
 	scc_str(&src0_str[0],src0); 
 
@@ -617,8 +674,9 @@ exit:
 static s8 i_dis(struct ctx *c)
 {
 	s8 r;
+	u32 i0;
 
-	u32 i0=le322cpu(*(u32*)(c->i));
+	i0=le322cpu(*(u32*)(c->i));
  
 	if((i0&0xff800000)==0xbf800000) r=sopp(c);
 	else if((i0&0xff800000)==0xbf000000) r=sopc(c);
@@ -643,6 +701,13 @@ static s8 i_dis(struct ctx *c)
 	return r;
 }
 
+/*we don't want to rely on the elf loader for that*/
+void cmingcndis_static_init(void)
+{
+	i_mnemonic_maps_init();
+	fs_mnemonic_init();
+}
+
 s8 cmingcndis_dis(	u8 *m,
 			s32 m_sz,
 			s32 src_sz_max,
@@ -655,9 +720,11 @@ s8 cmingcndis_dis(	u8 *m,
 	struct msgs_ctx msgs_c;
 	struct ctx c;
 	u8 *m_e;
+	s8 r0;
+	s8 r1;
 
-	s8 r0=0;
-	s8 r1=0;
+	r0=0;
+	r1=0;
 
 	if(msgs&&msgs_sz){
 		*msgs=0;

@@ -34,8 +34,9 @@ private
 static u8 grow(struct msgs_ctx *msgs,s32 len)
 {
 	sl addr;
+	s8 r;
 
-	s8 r=0;
+	r=0;
 
 	if(!*msgs->sz){/*first allocation, then mmapping*/
 		addr=mmap((sl)len,PROT_READ|PROT_WRITE,MAP_PRIVATE

@@ -1,4 +1,7 @@
 {
-global: cmingcnasm_asm;
-local: *;
+global:
+	cmingcnasm_static_init;
+	cmingcnasm_asm;
+local:
+	*;
 };

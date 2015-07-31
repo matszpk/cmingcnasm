@@ -37,13 +37,19 @@ public
 private
 ------------------------------------------------------------------------------*/
 #include "msgs.h"
-#define IS_C
 #include "is.h"
-#undef IS_C
 #include "libcmingcnasm-private.h"
 #include "src_parse.h"
 #include "m_emit.h"
 /*----------------------------------------------------------------------------*/
+
+/*we don't want to rely on the elf loader for that*/
+void cmingcnasm_static_init(void)
+{
+	i_mnemonic_maps_init();
+	fs_mnemonic_init();
+	fs_val_parser_init();
+}
 
 s8 cmingcnasm_asm(u8 *src,
                   s32 src_sz,

@@ -5,6 +5,9 @@ this code is protected by the GNU affero GPLv3 with a lesser exception
 for video games
 author:Sylvain BERTRAND <sylvain.bertrand AT gmail dot com>
 *******************************************************************************/
+/*we don't rely on the elf loader to build our static data*/
+void cmingcndis_static_init(void);
+
 #define CMINGCNDIS_ERR   -1
 #define CMINGCN_MSGS_ERR -2/*something went wrong with the message system*/
 s8 cmingcndis_dis(u8 *m,/*(in)pointer on machine code*/

@@ -26,4 +26,8 @@ struct i{
 
 	struct i_f fs[FS_MAX];;
 };
+
+#ifndef SRC_PARSE_C
+extern void fs_val_parser_init(void);
+#endif
 #endif
