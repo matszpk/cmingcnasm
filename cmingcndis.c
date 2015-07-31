@@ -183,6 +183,8 @@ static void globals_init()
 	src=0;
 	src_sz=0;
 	src_sz_max=1024*1024;/*default to 1MiB*/
+
+	cmingcndis_static_init();
 }
 
 /******************************************************************************/

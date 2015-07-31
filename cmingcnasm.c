@@ -184,6 +184,8 @@ static void globals_init()
 	m=0;
 	m_sz=0;
 	m_sz_max=1024*1024;/*default to 1MiB*/
+
+	cmingcnasm_static_init();
 }
 
 /******************************************************************************/
