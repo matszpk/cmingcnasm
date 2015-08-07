@@ -195,7 +195,7 @@ static ulinux_u8 *number(ulinux_u8 *buf,ulinux_u8 *end,ulinux_u64 num,
 	/*we are called with base 8, 10 or 16, only, thus don't need "G..."
 	  locase = 0 or 0x20. ORing digits or letters with 'locase'
 	  produces same digits or (maybe lowercased) letters*/
-	locase=((spec.flags&SMALL)!=0);
+	locase=spec.flags&SMALL;
 	if(spec.flags&LEFT) spec.flags&=~ZEROPAD;
 
 	sign=0;
