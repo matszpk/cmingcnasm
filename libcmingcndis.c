@@ -47,13 +47,13 @@ private
 #define cs_n(x) sizeof(x)-1
 
 struct ctx{
-  u8 *m;
-  u8 *i;
-
-  s32 src_sz_max;
-  u8 **src;
-  s32 *src_sz;
-  struct msgs_ctx *msgs;
+	u8 *m;
+	u8 *i;
+	
+	s32 src_sz_max;
+	u8 **src;
+	s32 *src_sz;
+	struct msgs_ctx *msgs;
 };
 
 #define MSG(x) msg(c->msgs,"error:" x,addr)
@@ -91,6 +91,65 @@ exit:
 }
 #undef MSG
 
+#define src_out(a,b,...) src_out_hidden(a,(u8*)b,##__VA_ARGS__)
+static s8 src_out_hidden(struct ctx *c,u8 *fmt,...)
+{
+	u64 len;
+	va_list args;
+	s8 r;
+
+	va_start(args,fmt);
+	len=vsnprintf(0,0,fmt,args);
+	va_end(args);
+
+	if(len==0){
+		r=msg(c->msgs,"error:0x%lx:src_out:unable to evaluate the formatted string len\n",
+								c->i-c->m);
+		if(!r) r=CMINGCNDIS_ERR;
+		goto exit;
+	}
+
+	r=src_grow(c,len);
+	if(r!=0) goto exit;
+
+	va_start(args,fmt);
+	len=vsnprintf(&(*c->src)[*c->src_sz-len],len,fmt,args);
+	va_end(args);
+
+	if(len==0){
+		r=msg(c->msgs,"error:0x%lx:src_out:%s unable to output the formatted string in source code buffer\n",
+								c->i-c->m);
+		if(!r) r=CMINGCNDIS_ERR;
+		goto exit;
+	}
+exit:
+	return r;
+}
+
+
+#define i_mnemonic_map_find(a,b,c,d) i_mnemonic_map_find_hidden(a,b,c,(u8*)d)
+static struct i_mnemonic_map *i_mnemonic_map_find_hidden(struct ctx *c,u8 fmt,
+							s16 op,u8 *msg_str)
+{
+	struct i_mnemonic_map *map;
+
+	map=&i_mnemonic_maps[0];
+
+	loop{
+		if(map->mnemonic==0) break;
+
+		if(map->fmts&BIT(fmt)
+			&&(map->op_base+fmt_op_offset(map->fmts,fmt))==op)
+			break;
+		++map;
+	}
+
+	if(map->mnemonic==0)
+		msg(c->msgs,"error:0x%lx:%s mnemonic not found\n",c->i-c->m,
+								msg_str);
+	return map;
+}
+
 static s8 src_unmap(struct ctx *c)
 {
 	sl r;
@@ -115,90 +174,34 @@ static s8 sopp(struct ctx *c)
 
 	i=le322cpu(*(u32*)(c->i));
 	op=(i>>16)&0x7f;
-	map=&i_mnemonic_maps[0];
 
-	loop{
-		if(map->mnemonic==0) break;
-
-		if(map->fmts&BIT(FMT_SOPP)
-			&&(map->op_base+fmt_op_offset(map->fmts,FMT_SOPP))==op)
-			break;
-		++map;
-	}
-	if(map->mnemonic==0){
-		r=msg(c->msgs,"error:0x%lx:sopp mnemonic not found\n",
-								c->i-c->m);
-		if(!r) r=CMINGCNDIS_ERR;
-		goto exit;
-	}
+	map=i_mnemonic_map_find(c,FMT_SOPP,(s16)op,"sopp");
+	if(!map){r=CMINGCNDIS_ERR;goto exit;}
 
 	if(op==12){
 		/*the s_waitcnt sopp has 3 subfields instead af 1 simm16 field*/
 		u8 vm_cnt;
 		u8 exp_cnt;
 		u8 lgkm_cnt;
-		u8 *i_str;
-		u64 len;
 
 		vm_cnt=i&0xf;
 		exp_cnt=(i>>4)&0x7;
 		lgkm_cnt=(i>>8)&0x1f;
-		i_str=(u8*)"\t%s %s=%u %s=%u %s=%u\n";
-		len=snprintf(0,0,i_str,map->mnemonic,fs_mnemonic[F_VM_CNT],
-					vm_cnt,fs_mnemonic[F_EXP_CNT],exp_cnt,
-					fs_mnemonic[F_LGKM_CNT],lgkm_cnt);
-
-		if(len==0){
-			r=msg(c->msgs,"error:0x%lx:sopp:%s unable to evaluate the resulting instruction string\n",
-						c->i-c->m,map->mnemonic);
-			if(!r) r=CMINGCNDIS_ERR;
-			goto exit;
-		}
-
-		/*don't miss the \0 at the start*/
-		r=src_grow(c,len+(*c->src_sz?0:1));
-		if(r!=0) goto exit;
-
-		/*do swallow each time, except the first time, the \0*/
-		len=snprintf(&(*c->src)[*c->src_sz-len-(*c->src_sz?1:0)],len+1,
-			i_str,map->mnemonic,fs_mnemonic[F_VM_CNT],vm_cnt,
+		r=src_out(c,"        0x%08x         %s %s=%u %s=%u %s=%u\n",
+					i,map->mnemonic,
+					fs_mnemonic[F_VM_CNT],vm_cnt,
 					fs_mnemonic[F_EXP_CNT],exp_cnt,
 					fs_mnemonic[F_LGKM_CNT],lgkm_cnt);
-		if(len==0){
-			r=msg(c->msgs,"error:0x%lx:sopp:%s unable to print instruction string in source code buffer\n",
-						c->i-c->m,map->mnemonic);
-			if(!r) r=CMINGCNDIS_ERR;
-			goto exit;
-		}
+
+		if(r!=0) goto exit;
 	}else{
 		u16 simm16;
-		u8 *i_str;
-		u64 len;
 
 		simm16=i&0xffff;
-		i_str=(u8*)"\t%s %s=%u\n";
-		len=snprintf(0,0,i_str,map->mnemonic,fs_mnemonic[F_SIMM16],
-									simm16);
-
-		if(len==0){
-			r=msg(c->msgs,"error:0x%lx:sopp:%s unable to evaluate the resulting instruction string\n",
-						c->i-c->m,map->mnemonic);
-			if(!r) r=CMINGCNDIS_ERR;
-			goto exit;
-		}
-		/*don't miss the \0 at the start;*/
-		r=src_grow(c,len+(*c->src_sz?0:1));
+		r=src_out(c,"        0x%08x         %s %s=%u\n",
+						i,map->mnemonic,
+						fs_mnemonic[F_SIMM16],simm16);
 		if(r!=0) goto exit;
-
-		/*do swallow each time, except the first time, the \0*/
-		len=snprintf(&(*c->src)[*c->src_sz-len-(*c->src_sz?1:0)],len+1,
-			i_str,map->mnemonic,fs_mnemonic[F_SIMM16],simm16);
-		if(len==0){
-			r=msg(c->msgs,"error:0x%lx:sopp:%s unable to print instruction string in source code buffer\n",
-						c->i-c->m,map->mnemonic);
-			if(!r) r=CMINGCNDIS_ERR;
-			goto exit;
-		}
 	}
 	r=sizeof(i);
 exit:
@@ -208,17 +211,7 @@ exit:
 static s8 sopc(struct ctx *c)
 {
 	s8 r;
-
 	r=msg(c->msgs,"error:0x%lx:sopc unimplemented\n",c->i-c->m);
-	if(!r) r=CMINGCNDIS_ERR;
-	return r;
-}
-
-static s8 sop1(struct ctx *c)
-{
-	s8 r;
-
-	r=msg(c->msgs,"error:0x%lx:sop1 unimplemented\n",c->i-c->m);
 	if(!r) r=CMINGCNDIS_ERR;
 	return r;
 }
@@ -226,6 +219,7 @@ static s8 sop1(struct ctx *c)
 #define SCC_STR_BUF_SZ sizeof("literal_constant")
 static void scc_str(u8 *d,u16 v)
 {
+	d[0]=0;
 	if(v<=103) snprintf(d,SCC_STR_BUF_SZ,"s%u",v);
 	else if(v==106) strncpy(d,"vcc_lo",SCC_STR_BUF_SZ);
 	else if(v==107) strncpy(d,"vcc_hi",SCC_STR_BUF_SZ);
@@ -255,57 +249,77 @@ static void scc_str(u8 *d,u16 v)
 	else if(256<=v&&v<=511) snprintf(d,SCC_STR_BUF_SZ,"v%u",v-256);
 }
 
+static s8 sop1(struct ctx *c)
+{
+	s8 r;
+	u32 i;
+	u8 ssrc0;
+	u8 ssrc0_str[SCC_STR_BUF_SZ];
+	u8 op;
+	u8 sdst;
+	u8 sdst_str[SCC_STR_BUF_SZ];
+	struct i_mnemonic_map *map;
+
+	i=le322cpu(*(u32*)(c->i));
+
+	ssrc0=i&0xff;
+	op=(i>>8)&0xff;
+	sdst=(i>>16)&0x7f;
+
+	scc_str(&ssrc0_str[0],(u16)ssrc0); 
+	scc_str(&sdst_str[0],(u16)sdst);
+
+	map=i_mnemonic_map_find(c,FMT_SOP1,(s16)op,"sop1");
+	if(!map){r=CMINGCNDIS_ERR;goto exit;}
+
+	if(ssrc0==255){/*we have a literal constant*/
+		u32 literal_constant;
+		literal_constant=le322cpu(*((u32*)(c->i)+1));
+		r=src_out(c,"        0x%08x         %s %s=%s %s=%s literal_constant=0x%08x\n",
+					i,map->mnemonic,
+					fs_mnemonic[F_SSRC0],&ssrc0_str[0],
+					fs_mnemonic[F_SDST],&sdst_str[0],
+					literal_constant);
+		if(r!=0) goto exit;
+	}else{
+		r=src_out(c,"        0x%08x         %s %s=%s %s=%s\n",
+					i,map->mnemonic,
+					fs_mnemonic[F_SSRC0],&ssrc0_str[0],
+					fs_mnemonic[F_SDST],&sdst_str[0]);
+	}
+
+	r=sizeof(i);
+	if(ssrc0==255) r+=sizeof(u32);/*don't forget the literal constant*/
+exit:
+	return r;
+}
+
 static s8 vopc(struct ctx *c)
 {
 	s8 r;
 	struct i_mnemonic_map *map;
 	u8 src0_str[SCC_STR_BUF_SZ];
-	u64 len;
+	u32 i;
+	u16 src0;
+	u8 op;
+	u8 vsrc1;
 
-	u8 *i_str=(u8*)"\t%s %s=%s %s=v%u\n";
-	u32 i=le322cpu(*(u32*)(c->i));
-	u16 src0=i&0x1ff;
-	u8 op=(i>>17)&0xff;
-	u8 vsrc1=(i>>9)&0xff;
+	i=le322cpu(*(u32*)(c->i));
+	src0=i&0x1ff;
+	op=(i>>17)&0xff;
+	vsrc1=(i>>9)&0xff;
 
 	scc_str(&src0_str[0],src0); 
-	map=&i_mnemonic_maps[0];
 
-	loop{
-		if(map->mnemonic==0) break;
+	map=i_mnemonic_map_find(c,FMT_VOPC,(s16)op,"vopc");
+	if(!map){r=CMINGCNDIS_ERR;goto exit;}
 
-		if((map->fmts&BIT(FMT_VOPC))&&(map->op_base==op))
-			break;
-		++map;
-	}
-
-	if(map->mnemonic==0){
-		r=msg(c->msgs,"error:0x%lx:vopc mnemonic not found\n",
-								c->i-c->m);
-		if(!r) r=CMINGCNDIS_ERR;
-		goto exit;
-	}
-
-	len=snprintf(0,0,i_str,map->mnemonic,fs_mnemonic[F_SRC0],src0_str,
-						fs_mnemonic[F_VSRC1],vsrc1);
-	if(len==0){
-		r=msg(c->msgs,"error:0x%lx:vopc:%s unable to evaluate the resulting instruction string\n",c->i-c->m,map->mnemonic);
-		if(!r) r=CMINGCNDIS_ERR;
-		goto exit;
-	}
-	r=src_grow(c,len+(*c->src_sz?0:1));/*don't miss the \0 at the start*/
+	r=src_out(c,"        0x%08x         %s %s=%s %s=v%u\n",
+					i,map->mnemonic,
+					fs_mnemonic[F_SRC0],&src0_str[0],
+					fs_mnemonic[F_VSRC1],vsrc1);
 	if(r!=0) goto exit;
 
-	/*do swallow each time, except the first time, the \0*/
-	len=snprintf(&(*c->src)[*c->src_sz-len-(*c->src_sz?1:0)],len+1,i_str,
-        	map->mnemonic,fs_mnemonic[F_SRC0],src0_str,fs_mnemonic[F_VSRC1],
-									vsrc1);
-	if(len==0){
-		r=msg(c->msgs,"error:0x%lx:vopc:%s unable to print instruction string in source code buffer\n",
-						c->i-c->m,map->mnemonic);
-		if(!r) r=CMINGCNDIS_ERR;
-		goto exit;
-	}
 	r=sizeof(i);
 exit:
 	return r;
@@ -316,53 +330,138 @@ static s8 vop1(struct ctx *c)
 	s8 r;
 	struct i_mnemonic_map *map;
 	u8 src0_str[SCC_STR_BUF_SZ];
-	u64 len;
+	u32 i;
+	u16 src0;
+	u8 op;
+	u8 vdst;
 
-	u8 *i_str=(u8*)"\t%s %s=%s %s=v%u\n";
-	u32 i=le322cpu(*(u32*)(c->i));
-	u16 src0=i&0x1ff;
-	u8 op=(i>>9)&0xff;
-	u8 vdst=(i>>17)&0xff;
+	i=le322cpu(*(u32*)(c->i));
+	src0=i&0x1ff;
+	op=(i>>9)&0xff;
+	vdst=(i>>17)&0xff;
 
 	scc_str(&src0_str[0],src0); 
-	map=&i_mnemonic_maps[0];
+	map=i_mnemonic_map_find(c,FMT_VOP1,(s16)op,"vop1");
 
-	loop{
-		if(map->mnemonic==0) break;
-
-		if(map->fmts&BIT(FMT_VOP1)
-			&&(map->op_base+fmt_op_offset(map->fmts,FMT_VOP1))==op)
-			break;
-		++map;
-	}
-
-	if(map->mnemonic==0){
-		r=msg(c->msgs,"error:0x%lx:vop1 mnemonic not found\n",
-								c->i-c->m);
-		if(!r) r=CMINGCNDIS_ERR;
-		goto exit;
-	}
-
-	len=snprintf(0,0,i_str,map->mnemonic,fs_mnemonic[F_SRC0],src0_str,
+	r=src_out(c,"        0x%08x          %s %s=%s %s=v%u\n",
+						i,map->mnemonic,
+						fs_mnemonic[F_SRC0],src0_str,
 						fs_mnemonic[F_VDST],vdst);
-	if(len==0){
-		r=msg(c->msgs,"error:0x%lx:vop1:%s unable to evaluate the resulting instruction string\n",c->i-c->m,map->mnemonic);
-		if(!r) r=CMINGCNDIS_ERR;
-		goto exit;
-	}
-	r=src_grow(c,len+(*c->src_sz?0:1));/*don't miss the \0 at the start*/
 	if(r!=0) goto exit;
 
-	/*do swallow each time, except the first time, the \0*/
-	len=snprintf(&(*c->src)[*c->src_sz-len-(*c->src_sz?1:0)],len+1,i_str,
-        	map->mnemonic,fs_mnemonic[F_SRC0],src0_str,fs_mnemonic[F_VDST],
-									vdst);
-	if(len==0){
-		r=msg(c->msgs,"error:0x%lx:vop1:%s unable to print instruction string in source code buffer\n",
-						c->i-c->m,map->mnemonic);
-		if(!r) r=CMINGCNDIS_ERR;
-		goto exit;
+	r=sizeof(i);
+exit:
+	return r;
+}
+
+static s8 vop3b(struct ctx *c,u64 i,u16 op)
+{
+	s8 r;
+	u8 vdst;
+	u8 sdst;
+	u8 sdst_str[SCC_STR_BUF_SZ];
+	u16 src0;
+	u8 src0_str[SCC_STR_BUF_SZ];
+	u16 src1;
+	u8 src1_str[SCC_STR_BUF_SZ];
+	u16 src2;
+	u8 src2_str[SCC_STR_BUF_SZ];
+	u8 omod;
+	u8 neg;
+	struct i_mnemonic_map *map;
+
+	vdst=i&0xff;
+	sdst=(i>>8)&0x7f;
+	src0=(i>>32)&0x1ff;
+	src1=(i>>41)&0x1ff;
+	src2=(i>>50)&0x1ff;
+	omod=(i>>59)&0x3;
+	neg=(i>>61)&0x3;
+
+	scc_str(&sdst_str[0],(u16)sdst); 
+	scc_str(&src0_str[0],(u16)src0); 
+	scc_str(&src1_str[0],(u16)src1);
+	scc_str(&src2_str[0],(u16)src2);
+
+	map=i_mnemonic_map_find(c,FMT_VOP3B,(s16)op,"vop3b");
+	if(!map){r=CMINGCNDIS_ERR;goto exit;}
+
+	r=src_out(c,"        0x%016x %s %s=v%u %s=%s %s=%s %s=%s %s=%s %s=%u %s=src%u\n",
+					i,map->mnemonic,
+					fs_mnemonic[F_VDST],vdst,
+					fs_mnemonic[F_SDST],&sdst_str[0],
+					fs_mnemonic[F_SRC0],&src0_str[0],
+					fs_mnemonic[F_SRC1],&src1_str[0],
+					fs_mnemonic[F_SRC2],&src2_str[0],
+					fs_mnemonic[F_OMOD],omod,
+					fs_mnemonic[F_NEG],neg);
+	if(r!=0) goto exit;
+
+	r=sizeof(i);
+exit:
+	return r;
+}
+
+static s8 vop3a(struct ctx *c,u64 i,u16 op)
+{
+	s8 r;
+	u8 vdst;
+	u8 vdst_str[SCC_STR_BUF_SZ];
+	u8 abs;
+	u8 clamp;
+	u16 src0;
+	u8 src0_str[SCC_STR_BUF_SZ];
+	u16 src1;
+	u8 src1_str[SCC_STR_BUF_SZ];
+	u16 src2;
+	u8 src2_str[SCC_STR_BUF_SZ];
+	u8 omod;
+	u8 neg;
+	struct i_mnemonic_map *map;
+
+	vdst=i&0xff;
+	abs=(i>>8)&0x7;
+	clamp=(i>>11)&0x1;
+	src0=(i>>32)&0x1ff;
+	src1=(i>>41)&0x1ff;
+	src2=(i>>50)&0x1ff;
+	omod=(i>>59)&0x3;
+	neg=(i>>61)&0x3;
+
+	scc_str(&src0_str[0],(u16)src0); 
+	scc_str(&src1_str[0],(u16)src1);
+	scc_str(&src2_str[0],(u16)src2);
+
+	map=i_mnemonic_map_find(c,FMT_VOP3A,(s16)op,"vop3a");
+	if(!map){r=CMINGCNDIS_ERR;goto exit;}
+
+	if(op<=255){/*in cmp ops, vdst is a sgprs or vcc*/
+		scc_str(&vdst_str[0],(u16)vdst);
+		r=src_out(c,"        0x%016x %s %s=%s %s=src%u %s=%u %s=%s %s=%s %s=%s %s=%u %s=src%u\n",
+					i,map->mnemonic,
+					fs_mnemonic[F_VDST],&vdst_str[0],
+					fs_mnemonic[F_ABS],abs,
+					fs_mnemonic[F_CLAMP],clamp,
+					fs_mnemonic[F_SRC0],&src0_str[0],
+					fs_mnemonic[F_SRC1],&src1_str[0],
+					fs_mnemonic[F_SRC2],&src2_str[0],
+					fs_mnemonic[F_OMOD],omod,
+					fs_mnemonic[F_NEG],neg);
+		if(r!=0) goto exit;
+	}else{
+		r=src_out(c,"        0x%016x %s %s=v%u %s=src%u %s=%u %s=%s %s=%s %s=%u %s=src%u\n",
+					i,map->mnemonic,
+					fs_mnemonic[F_VDST],vdst,
+					fs_mnemonic[F_ABS],abs,
+					fs_mnemonic[F_CLAMP],clamp,
+					fs_mnemonic[F_SRC0],&src0_str[0],
+					fs_mnemonic[F_SRC1],&src1_str[0],
+					fs_mnemonic[F_SRC2],&src2_str[0],
+					fs_mnemonic[F_OMOD],omod,
+					fs_mnemonic[F_NEG],neg);
+		if(r!=0) goto exit;
 	}
+
 	r=sizeof(i);
 exit:
 	return r;
@@ -370,10 +469,15 @@ exit:
 
 static s8 vop3(struct ctx *c)
 {
-	s8 r;
-	r=msg(c->msgs,"error:0x%lx:vop3 unimplemented\n",c->i-c->m);
-	if(!r) r=CMINGCNDIS_ERR;
-	return r;
+	u64 i;
+	u16 op;
+
+	i=le642cpu(*(u64*)(c->i));
+
+	op=(i>>17)&0x1ff;
+
+	if(vop3_is_vop3b(op)) return vop3b(c,i,op);
+	return vop3a(c,i,op);
 }
 
 static s8 vintrp(struct ctx *c)
@@ -396,8 +500,6 @@ static s8 mubuf(struct ctx *c)
 {
 	s8 r;
 	struct i_mnemonic_map *map;
-	u64 len;
-	u8 *i_str;
 	u64 i;
 	u16 offset;
 	u8 offen;
@@ -412,7 +514,6 @@ static s8 mubuf(struct ctx *c)
 	u8 slc;
 	u8 tfe;
 
-	i_str=(u8*)"\t%s %s=%u %s=%u %s=%u %s=%u %s=%u %s=%u %s=v%u %s=v%u %s=s%u %s=%u %s=%u\n";
 	i=le642cpu(*(u64*)(c->i));
 	offset=i&0xfff;
 	offen=(i>>12)&1;
@@ -427,49 +528,24 @@ static s8 mubuf(struct ctx *c)
 	slc=(i>>54)&1;
 	tfe=(i>>55)&1;
 
-	map=&i_mnemonic_maps[0];
-	loop{
-		if(map->mnemonic==0) break;
-		if(map->fmts&BIT(FMT_MUBUF)
-                        &&(map->op_base+fmt_op_offset(map->fmts,FMT_MUBUF))==op)
-			break;
-		++map;
-	}
-	if(map->mnemonic==0){
-		r=msg(c->msgs,"error:0x%lx:mubuf mnemonic not found\n",c->i-c->m);
-		if(!r) r=CMINGCNDIS_ERR;
-		goto exit;
-	}
+	map=i_mnemonic_map_find(c,FMT_MUBUF,(s16)op,"mubuf");
+	if(!map){r=CMINGCNDIS_ERR;goto exit;}
 
-	len=snprintf(0,0,i_str,map->mnemonic,fs_mnemonic[F_OFFSET],offset,
-                       fs_mnemonic[F_OFFEN],offen,fs_mnemonic[F_IDXEN],idxen,
-                       fs_mnemonic[F_GLC],glc,fs_mnemonic[F_ADDR64],addr64,
-                       fs_mnemonic[F_LDS],lds,fs_mnemonic[F_VADDR],vaddr,
-                       fs_mnemonic[F_VDATA],vdata,fs_mnemonic[F_SRSRC],srsrc<<2,
-                       fs_mnemonic[F_SLC],slc,fs_mnemonic[F_TFE],tfe);
-	if(len==0){
-		r=msg(c->msgs,"error:0x%lx:mubuf:%s unable to evaluate the resulting instruction string\n",
-						c->i-c->m,map->mnemonic);
-		if(!r) r=CMINGCNDIS_ERR;
-		goto exit;
-	}
-	r=src_grow(c,len+(*c->src_sz?0:1));/*don't miss the \0 at the start*/
+	r=src_out(c,"        0x%016x %s %s=%u %s=%u %s=%u %s=%u %s=%u %s=%u %s=v%u %s=v%u %s=s%u %s=%u %s=%u\n",
+						i,map->mnemonic,
+						fs_mnemonic[F_OFFSET],offset,
+						fs_mnemonic[F_OFFEN],offen,
+						fs_mnemonic[F_IDXEN],idxen,
+						fs_mnemonic[F_GLC],glc,
+						fs_mnemonic[F_ADDR64],addr64,
+						fs_mnemonic[F_LDS],lds,
+						fs_mnemonic[F_VADDR],vaddr,
+						fs_mnemonic[F_VDATA],vdata,
+						fs_mnemonic[F_SRSRC],srsrc<<2,
+						fs_mnemonic[F_SLC],slc,
+						fs_mnemonic[F_TFE],tfe);
 	if(r!=0) goto exit;
 
-	/*do swallow each time, except the first time, the \0*/
-	len=snprintf(&(*c->src)[*c->src_sz-len-(*c->src_sz?1:0)],len+1,i_str,
-			map->mnemonic,
-			fs_mnemonic[F_OFFSET],offset,fs_mnemonic[F_OFFEN],offen,
-			fs_mnemonic[F_IDXEN],idxen,fs_mnemonic[F_GLC],glc,
-			fs_mnemonic[F_ADDR64],addr64,fs_mnemonic[F_LDS],lds,
-			fs_mnemonic[F_VADDR],vaddr,fs_mnemonic[F_VDATA],vdata,
-			fs_mnemonic[F_SRSRC],srsrc<<2,fs_mnemonic[F_SLC],slc,
-							fs_mnemonic[F_TFE],tfe);
-	if(len==0){
-		r=msg(c->msgs,"error:0x%lx:mubuf:%s unable to print instruction string in" " source code buffer\n",c->i-c->m,map->mnemonic);
-		if(!r) r=CMINGCNDIS_ERR;
-		goto exit;
-	}
 	r=sizeof(i);
 exit:
 	return r;
@@ -478,7 +554,6 @@ exit:
 static s8 mtbuf(struct ctx *c)
 {
 	s8 r;
-
 	r=msg(c->msgs,"error:0x%lx:mtbuf unimplemented\n",c->i-c->m);
 	if(!r) r=CMINGCNDIS_ERR;
 	return r;
@@ -487,7 +562,6 @@ static s8 mtbuf(struct ctx *c)
 static s8 mimg(struct ctx *c)
 {
 	s8 r;
-
 	r=msg(c->msgs,"error:0x%lx:mimg unimplemented\n",c->i-c->m);
 	if(!r) r=CMINGCNDIS_ERR;
 	return r;
@@ -505,13 +579,10 @@ static s8 export(struct ctx *c)
 	u8 vsrc3;
 	struct i_mnemonic_map *map;
 	u8 tgt_str[sizeof("paramXX")];
-	u64 len;
-	u8 *i_str;
 	u64 i;
 	u8 en;
 	u8 tgt;
 
-	i_str=(u8*)"\t%s %s=0x%x %s=%s %s=%u %s=%u %s=%u %s=v%u %s=v%u %s=v%u %s=v%u\n";
 	i=le642cpu(*(u64*)(c->i));
 	en=i&0xf;
 	tgt=(i>>4)&0x3f;
@@ -535,47 +606,22 @@ static s8 export(struct ctx *c)
 	vsrc2=(i>>48)&0xff;
 	vsrc3=(i>>56)&0xff;
 
-	map=&i_mnemonic_maps[0];
-	loop{
-		if(map->mnemonic==0) break;
-		if(map->fmts&BIT(FMT_EXP)) break;/*no opcode*/
-		++map;
-	}
-	if(map->mnemonic==0){
-		r=msg(c->msgs,"error:0x%lx:exp mnemonic not found\n",c->i-c->m);
-		if(!r) r=CMINGCNDIS_ERR;
-		goto exit;
-	}
+	map=i_mnemonic_map_find(c,FMT_EXP,0,"exp");
+	if(!map){r=CMINGCNDIS_ERR;goto exit;}
 
-	len=snprintf(0,0,i_str,map->mnemonic,
-			fs_mnemonic[F_EN],en,fs_mnemonic[F_TGT],tgt_str,
-			fs_mnemonic[F_COMPR],compr,fs_mnemonic[F_DONE],done,
-			fs_mnemonic[F_VM],vm,fs_mnemonic[F_VSRC0],vsrc0,
-			fs_mnemonic[F_VSRC1],vsrc1,fs_mnemonic[F_VSRC2],vsrc2,
-			fs_mnemonic[F_VSRC3],vsrc3);
-	if(len==0){
-		r=msg(c->msgs,"error:0x%lx:exp:%s unable to evaluate the resulting instruction string\n",
-						c->i-c->m,map->mnemonic);
-		if(!r) r=CMINGCNDIS_ERR;
-		goto exit;
-	}
-	r=src_grow(c,len+(*c->src_sz?0:1));/*don't miss the \0 at the start;*/
+	r=src_out(c,"        0x%016x %s %s=0x%x %s=%s %s=%u %s=%u %s=%u %s=v%u %s=v%u %s=v%u %s=v%u\n",
+						i,map->mnemonic,
+						fs_mnemonic[F_EN],en,
+						fs_mnemonic[F_TGT],tgt_str,
+						fs_mnemonic[F_COMPR],compr,
+						fs_mnemonic[F_DONE],done,
+						fs_mnemonic[F_VM],vm,
+						fs_mnemonic[F_VSRC0],vsrc0,
+						fs_mnemonic[F_VSRC1],vsrc1,
+						fs_mnemonic[F_VSRC2],vsrc2,
+						fs_mnemonic[F_VSRC3],vsrc3);
 	if(r!=0) goto exit;
 
-	/*do swallow each time, except the first time, the \0*/
-	len=snprintf(&(*c->src)[*c->src_sz-len-(*c->src_sz?1:0)],len+1,i_str,
-			map->mnemonic,
-			fs_mnemonic[F_EN],en,fs_mnemonic[F_TGT],tgt_str,
-			fs_mnemonic[F_COMPR],compr,fs_mnemonic[F_DONE],done,
-			fs_mnemonic[F_VM],vm,fs_mnemonic[F_VSRC0],vsrc0,
-			fs_mnemonic[F_VSRC1],vsrc1,fs_mnemonic[F_VSRC2],vsrc2,
-						fs_mnemonic[F_VSRC3],vsrc3);
-	if(len==0){
-		r=msg(c->msgs,"error:0x%lx:exp:%s unable to print instruction string in source code buffer\n",
-						c->i-c->m,map->mnemonic);
-		if(!r) r=CMINGCNDIS_ERR;
-		goto exit;
-	}
 	r=sizeof(i);
 exit:
 	return r;
@@ -584,7 +630,6 @@ exit:
 static s8 smrd(struct ctx *c)
 {
 	s8 r;
-
 	r=msg(c->msgs,"error:0x%lx:smrd unimplemented\n",c->i-c->m);
 	if(!r) r=CMINGCNDIS_ERR;
 	return r;
@@ -593,7 +638,6 @@ static s8 smrd(struct ctx *c)
 static s8 sopk(struct ctx *c)
 {
 	s8 r;
-
 	r=msg(c->msgs,"error:0x%lx:sopk unimplemented\n",c->i-c->m);
 	if(!r) r=CMINGCNDIS_ERR;
 	return r;
@@ -602,9 +646,61 @@ static s8 sopk(struct ctx *c)
 static s8 sop2(struct ctx *c)
 {
 	s8 r;
+	u32 i;
+	u8 ssrc0;
+	u8 ssrc0_str[SCC_STR_BUF_SZ];
+	u8 ssrc1;
+	u8 ssrc1_str[SCC_STR_BUF_SZ];
+	u8 sdst;
+	u8 sdst_str[SCC_STR_BUF_SZ];
+	u8 op;
+	struct i_mnemonic_map *map;
+	u8 literal_offset;
 
-	r=msg(c->msgs,"error:0x%lx:sop2 unimplemented\n",c->i-c->m);
-	if(!r) r=CMINGCNDIS_ERR;
+	i=le322cpu(*(u32*)(c->i));
+
+	ssrc0=i&0xff;
+	ssrc1=(i>>8)&0xff;
+	sdst=(i>>16)&0x7f;
+	op=(i>>23)&0x7f;
+
+	scc_str(&ssrc0_str[0],(u16)ssrc0); 
+	scc_str(&ssrc1_str[0],(u16)ssrc1); 
+	scc_str(&sdst_str[0],(u16)sdst); 
+
+	map=i_mnemonic_map_find(c,FMT_SOP2,(s16)op,"sop2");
+	if(!map){r=CMINGCNDIS_ERR;goto exit;}
+
+	r=src_out(c,"        0x%08x         %s %s=%s %s=%s %s=%s",
+					i,map->mnemonic,
+					fs_mnemonic[F_SSRC0],&ssrc0_str[0],
+					fs_mnemonic[F_SSRC1],&ssrc1_str[0],
+					fs_mnemonic[F_SDST],&sdst_str[0]);
+	if(r!=0) goto exit;
+
+	literal_offset=1;
+	if(ssrc0==255){
+		u32 literal_constant;
+
+		literal_constant=le322cpu(*((u32*)(c->i)+literal_offset));
+		++literal_offset;
+		r=src_out(c," ssrc0_literal_constant=0x%08x",literal_constant);
+		if(r!=0) goto exit;
+	}
+	if(ssrc1==255){
+		u32 literal_constant;
+
+		literal_constant=le322cpu(*((u32*)(c->i)+literal_offset));
+		r=src_out(c," ssrc1_literal_constant=0x%08x",literal_constant);
+		if(r!=0) goto exit;
+	}
+
+	r=src_out(c,"\n");if(r!=0) goto exit;
+	
+	r=sizeof(i);
+	if(ssrc0==255) r+=sizeof(u32);
+	if(ssrc1==255) r+=sizeof(u32);
+exit:
 	return r;
 }
 
@@ -613,15 +709,12 @@ static s8 vop2(struct ctx *c)
 	s8 r;
 	u8 src0_str[SCC_STR_BUF_SZ];
 	struct i_mnemonic_map *map;
-	u64 len;
-  	u8 *i_str;
 	u32 i;
 	u16 src0;
 	u8 vsrc1;
 	u8 vdst;
 	u8 op;
 
-  	i_str=(u8*)"\t%s %s=%s %s=v%u %s=v%u\n";
 	i=le322cpu(*(u32*)(c->i));
 	src0=i&0x1ff;
 	vsrc1=(i>>0)&0xff;
@@ -630,41 +723,16 @@ static s8 vop2(struct ctx *c)
 
 	scc_str(&src0_str[0],src0); 
 
-	map=&i_mnemonic_maps[0];
-	loop{
-		if(map->mnemonic==0) break;
-		if(map->fmts&BIT(FMT_VOP2)
-			&&(map->op_base+fmt_op_offset(map->fmts,FMT_VOP2))==op)
-			break;
-		++map;
-	}
-	if(map->mnemonic==0){
-		r=msg(c->msgs,"error:0x%lx:vop2 mnemonic not found\n",c->i-c->m);
-		if(!r) r=CMINGCNDIS_ERR;
-		goto exit;
-	}
+	map=i_mnemonic_map_find(c,FMT_VOP2,(s16)op,"vop2");
+	if(!map){r=CMINGCNDIS_ERR;goto exit;}
 
-	len=snprintf(0,0,i_str,map->mnemonic,fs_mnemonic[F_SRC0],src0_str,
-			fs_mnemonic[F_VSRC1],vsrc1,fs_mnemonic[F_VDST],vdst);
-	if(len==0){
-		r=msg(c->msgs,"error:0x%lx:vop2:%s unable to evaluate the resulting instruction string\n",
-						c->i-c->m,map->mnemonic);
-		if(!r) r=CMINGCNDIS_ERR;
-		goto exit;
-	}
-	r=src_grow(c,len+(*c->src_sz?0:1));/*don't miss the \0 at the start*/
+	r=src_out(c,"        0x%016x %s %s=%s %s=v%u %s=v%u\n",
+						i,map->mnemonic,
+						fs_mnemonic[F_SRC0],src0_str,
+						fs_mnemonic[F_VSRC1],vsrc1,
+						fs_mnemonic[F_VDST],vdst);
 	if(r!=0) goto exit;
 
-	/*do swallow each time, except the first time, the \0*/
-	len=snprintf(&(*c->src)[*c->src_sz-len-(*c->src_sz?1:0)],len+1,i_str,
-        	map->mnemonic,fs_mnemonic[F_SRC0],src0_str,fs_mnemonic[F_VDST],
-									vdst);
-	if(len==0){
-		r=msg(c->msgs,"error:0x%lx:vop2:%s unable to print instruction string in source code buffer\n",
-						c->i-c->m,map->mnemonic);
-		if(!r) r=CMINGCNDIS_ERR;
-		goto exit;
-	}
 	r=sizeof(i);
 exit:
 	return r;
@@ -692,7 +760,7 @@ static s8 i_dis(struct ctx *c)
 	else if((i0&0xfc000000)==0xf8000000) r=export(c);
 	else if((i0&0xf8000000)==0xc0000000) r=smrd(c);
 	else if((i0&0xf0000000)==0xb0000000) r=sopk(c);
-	else if((i0&0xc0000000)==0x20000000) r=sop2(c);
+	else if((i0&0xc0000000)==0x80000000) r=sop2(c);
 	else if((i0&0x80000000)==0x00000000) r=vop2(c);
 	else{
 		r=msg(c->msgs,"error:0x%lx:instruction unknown\n",c->i-c->m);
@@ -765,7 +833,6 @@ s8 cmingcndis_dis(	u8 *m,
 		if(r0<0) goto err_unmap_src;
 		c.i+=r0;
 	}
-	(*c.src_sz)--;/*swallow the snprint \0*/
 	goto exit;
 
 err_unmap_src:

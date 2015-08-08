@@ -36,8 +36,8 @@ author:Sylvain BERTRAND <sylvain.bertrand AT gmail dot com>
 #define le322cpu ulinux_le322cpu
 #define le642cpu ulinux_le642cpu
 #define loop while(1)
-#define vsnprintf ulinux_vsnprintf
 #define snprintf(a,b,c,...) ulinux_snprintf(a,b,(u8*)c,##__VA_ARGS__)
+#define vsnprintf(a,b,c,d) ulinux_vsnprintf(a,b,(u8*)c,d)
 #define exit(a) ulinux_sysc(exit_group,1,a)
 #define open(a,b,c) ulinux_sysc(open,3,a,b,c)
 #define O_RDONLY ULINUX_O_RDONLY

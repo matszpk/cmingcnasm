@@ -100,6 +100,19 @@ static inline u16 fmt_op_offset(u32 fmts,u32 fmt)
   return 0;
 }
 
+#define VOP3B_OP_SECTION_1_START	293
+#define VOP3B_OP_SECTION_1_END		298
+#define VOP3B_OP_SECTION_2_START	365
+#define VOP3B_OP_SECTION_2_END		366
+
+static inline u8 vop3_is_vop3b(u16 op)
+{
+	if((VOP3B_OP_SECTION_1_START<=op&&op<=VOP3B_OP_SECTION_1_END)
+	   ||(VOP3B_OP_SECTION_2_START<=op&&op<=VOP3B_OP_SECTION_2_END))
+		return 1;
+	return 0;
+}
+
 #define I_MNEMONIC_MAPS_N 813
 
 #ifdef IS_C
