@@ -49,13 +49,12 @@ u8 *g_dprintf_buf;
 static u8 *m_pathname;
 static si m_fd;
 static void *m;
-static s32 m_sz;
+static u64 m_sz;
 
 static u8 *src_pathname;
 static si src_fd;
 static u8 *src;
-static s32 src_sz;
-static s32 src_sz_max;
+static u64 src_sz;
 
 static void args_parse(sl argc,u8 **argv_envp)
 {
@@ -125,14 +124,14 @@ static void m_mmap(void)
 		PERR("fatal(%ld):unable to stat machine file\n",r);
 		exit(-1);
 	}
-	m_sz=(s32)m_stat.sz;
+	m_sz=(u64)m_stat.sz;
 
 	if(!m_sz){
 		PERR("WARNING:machine file is empty, exiting with no error\n");
 		exit(0);
 	}
   
-	r=mmap(m_sz,PROT_READ,MAP_PRIVATE,m_fd);
+	r=mmap((ul)m_sz,PROT_READ,MAP_PRIVATE,m_fd);
 	if(ISERR(r)){
 		PERR("fatal(%ld):unable to mmap machine file\n",r);
 		exit(-1);
@@ -143,7 +142,7 @@ static void m_mmap(void)
 static void src_save(void)
 {
 	sl r;
-	s32 bytes_written;
+	u64 bytes_written;
 
 	loop{
 		r=open(src_pathname,O_CREAT|O_TRUNC|O_WRONLY,S_IRUSR|S_IWUSR
@@ -166,7 +165,7 @@ static void src_save(void)
 			PERR("fatal(%ld):error writing source file\n",r);
 			exit(-1);
 		}
-		bytes_written+=(s32)r;
+		bytes_written+=(u64)r;
 		if(bytes_written==src_sz) break;
 	}
 }
@@ -182,7 +181,6 @@ static void globals_init()
 	src_fd=-1;
 	src=0;
 	src_sz=0;
-	src_sz_max=1024*1024;/*default to 1MiB*/
 
 	cmingcndis_static_init();
 }
@@ -191,7 +189,7 @@ static void globals_init()
 void ulinux_start(sl argc,u8 **argv_envp)
 {
 	u8 *msgs;
-	s32 msgs_sz;
+	u64 msgs_sz;
 	s8 r0;
 #ifndef QUIET 
 	static u8 dprintf_buf[DPRINTF_BUF_SZ];
@@ -203,10 +201,8 @@ void ulinux_start(sl argc,u8 **argv_envp)
 
 	r0=cmingcndis_dis(	m,
 				m_sz,
-				src_sz_max,
 				&src,
 				&src_sz,
-				10*1024,/*max 10kiB of messages*/
 				&msgs,
 				&msgs_sz);
 
@@ -220,12 +216,7 @@ void ulinux_start(sl argc,u8 **argv_envp)
 	if(r0==CMINGCNDIS_ERR){
 		PERR("fatal(%d)\n",r0);
 		exit(-1);
-	}else if(r0==CMINGCN_MSGS_ERR){
-		PERR("fatal(%d):something went wrong with the message system\n",
-									r0);
-		exit(-1);
 	}
-
 	src_save();
 	exit(0);
 }

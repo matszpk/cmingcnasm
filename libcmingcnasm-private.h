@@ -16,8 +16,8 @@ struct i_f{
 #define SRC_PATHNAME_SZ_MAX 255/*0 terminating char not included*/
 struct i{
 	u8 src_pathname[SRC_PATHNAME_SZ_MAX+1];
-	s32 src_l;
-	s32 l;
+	u64 src_l;
+	u64 l;
 
 	u8* label_s;
 	u8* label_e;

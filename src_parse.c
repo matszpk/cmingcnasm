@@ -49,19 +49,19 @@ private
 #define HAVE_LABEL           0x02
 struct ctx{
 	u8 *src;
-	s32 src_sz;
+	u64 src_sz;
 
 	/*source line context*/
-	s32 src_l;
+	u64 src_l;
 	u8 src_pathname[SRC_PATHNAME_SZ_MAX+1];
 
 	struct i *is;
-	s32 is_last;
+	u64 is_n;
 
 	u8 flgs;
 
 	/*line context*/
-	s32 l;		/*source file line number*/
+	u64 l;		/*source file line number*/
 	u8 *p;		/*up to p of the line has been processed*/
 	u8 *kw_e;	/*points on the last char of the current keyword*/
 	u8 *l_s;
@@ -73,66 +73,35 @@ struct ctx{
 	struct msgs_ctx *msgs;
 };
 
-#define MSG(x) msg(c->msgs,"error:source parse:%s:%d:pp(%d):" x,\
-c->src_pathname,c->src_l,c->l,addr)
 /*this is a brutal slab, remapping each time we grow*/
-static s8 i_new(struct ctx *c)
+static void i_new(struct ctx *c)
 {
 	sl addr;
-	s8 r;
+	struct i* i;
 
-	r=0;
-
-	if(c->is_last==-1){/*first allocation, then mmapping*/
-	addr=mmap(sizeof(*c->is),PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,
-									-1);
-		if(ISERR(addr)){
-			r=MSG("mmap(%ld):unable to mmap instruction slab\n");
-			if(!r) r=CMINGCNASM_ERR;
-			goto exit;
-		}
+	if(c->is_n==0){/*first allocation, then mmapping*/
+		addr=mmap(sizeof(*c->is),PROT_READ|PROT_WRITE,MAP_PRIVATE
+							|MAP_ANONYMOUS,-1);
 	}else{/*grow mapping*/
-		s32 old_len;
-		s32 new_len;
+		u64 old_len;
+		u64 new_len;
 
-		old_len=(c->is_last+1)*sizeof(*c->is);
+		old_len=c->is_n*sizeof(*c->is);
 		new_len=old_len+sizeof(*c->is);
 
 		addr=mremap(c->is,old_len,new_len,MREMAP_MAYMOVE);
-		if(ISERR(addr)){
-			r=MSG("mremap(%ld):unable to remap instruction slab\n");
-			if(!r) r=CMINGCNASM_ERR;
-			goto exit;
-		}
 	}
 
 	c->is=(struct i*)addr;
-	++c->is_last;
+	i=&c->is[c->is_n];
+	++c->is_n;
 
-	c->is[c->is_last].fs[0].f=F_INVALID;
-	c->is[c->is_last].l=c->l;
+	i->fs[0].f=F_INVALID;
+	i->l=c->l;
 
-	c->is[c->is_last].src_l=c->src_l;
-	c->is[c->is_last].src_pathname[SRC_PATHNAME_SZ_MAX]=0;
-	strncpy(&c->is[c->is_last].src_pathname[0],&c->src_pathname[0],
-							SRC_PATHNAME_SZ_MAX);
-exit:
-	return r; 
-}
-#undef MSG
-
-s8 is_unmap(struct i *is,s32 is_last,struct msgs_ctx *msgs)
-{
-	sl r;
-
-	if(is_last==-1) return 0;/*nothing to unmap*/
-
-	r=munmap(is,sizeof(*is)*(is_last+1));
-	if(ISERR(r)){
-		r=(sl)msg(msgs,"munmap(%ld):unable to unmap instructions slab\n");
-		if(!r) r=CMINGCNASM_ERR;
-	}
-	return (s8)r;
+	i->src_l=c->src_l;
+	i->src_pathname[SRC_PATHNAME_SZ_MAX]=0;
+	strncpy(&i->src_pathname[0],&c->src_pathname[0],SRC_PATHNAME_SZ_MAX);
 }
 
 static u8 is_blank(u8 *p)
@@ -181,45 +150,36 @@ static void l_kw_consumed(struct ctx *c)
 	c->p=c->kw_e+1;
 }
 
-#define MSG(x,...) msg(c->msgs,"error:source parse:%s:%d:pp(%d:%d):" x,\
+#define MSG(x,...) msg(c->msgs,"error:source parse:%s:%u:pp(%u:%u):" x,\
 c->src_pathname,c->src_l,c->l,c->p-c->l_s+1,##__VA_ARGS__)
 static s8 l_kw_label(struct ctx *c)
 {
-	s8 r;
+	struct i *i;
 
+	i=&c->is[c->is_n-1];
 	if(c->flgs&HAVE_LABEL){
-		r=MSG("already have a label on line %d pp(%d) in %s\n",
-				c->is[c->is_last].src_l,c->is[c->is_last].l,
-						c->is[c->is_last].src_pathname);
-		if(!r) r=CMINGCNASM_ERR;
-		goto exit;
+		i=&c->is[c->is_n-1];
+		MSG("already have a label on line %u pp(%u) in %s\n",i->src_l,
+							i->l,i->src_pathname);
+		return CMINGCNASM_ERR;
 	}
-	r=i_new(c);/*ready an instruction with the label*/
-	if(r!=0) goto exit;
+	i_new(c);/*ready an instruction with the label*/
 
-	struct i *i=&c->is[c->is_last];
+	i=&c->is[c->is_n-1];
 	i->label_s=c->p;
 	i->label_e=c->kw_e-1;
-
-exit:
-	return r;
+	return 0;
 }
 
 static s8 l_kw_i(struct ctx *c)
 {
-	s8 r;
 	struct i *i;
 	u64 i_sz;
 
-	r=0;
-
 	/*a label may have already instanciated an instruction*/
-	if(!(c->flgs&HAVE_LABEL)){
-		r=i_new(c);
-		if(r!=0) goto exit;
-	}
+	if(!(c->flgs&HAVE_LABEL)) i_new(c);
 
-	i=&c->is[c->is_last];
+	i=&c->is[c->is_n-1];
 
 	i->map=&i_mnemonic_maps[0];
 	i_sz=c->kw_e-c->p+1;
@@ -231,20 +191,17 @@ static s8 l_kw_i(struct ctx *c)
 	}
 
 	if(i->map->mnemonic==0){
-		r=MSG("unknown instruction\n");
-		if(!r) r=CMINGCNASM_ERR;
-		goto exit;
+		MSG("unknown instruction\n");
+		return CMINGCNASM_ERR;
 	}
-exit:
-	return r;
+	return 0;
 }
 #undef MSG
 
-#define MSG(x) msg(c->msgs,"error:source parse:%s:%d:pp(%d:%d):%s" \
+#define MSG(x) msg(c->msgs,"error:source parse:%s:%u:pp(%u:%u):%s" \
 " field" x,c->src_pathname,c->src_l,c->l,val-c->l_s+1,fs_mnemonic[f])
 static s8 f_scc(struct ctx *c,u8 f,struct i_f *i_f,u8 *val)
 {
-	s8 r2;
 	s8 r0;
 	u64 val_sz;
 
@@ -259,9 +216,7 @@ static s8 f_scc(struct ctx *c,u8 f,struct i_f *i_f,u8 *val)
 
 		if(r1){
 			if(sgpr_idx>103){
-				r2=MSG("sgpr index above 103\n");
-
-				if(r2) r0=r2;
+				MSG("sgpr index above 103\n");
 				goto exit;
 			}
 			i_f->val=(u16)sgpr_idx;
@@ -308,16 +263,14 @@ static s8 f_scc(struct ctx *c,u8 f,struct i_f *i_f,u8 *val)
 
 			if(r1){
 				if(ttmp_idx>11){
-					r2=MSG("ttmp index above 11\n");
-					if(r2) r0=r2;
+					MSG("ttmp index above 11\n");
 					goto exit;
 				}
 				i_f->val=(u16)ttmp_idx+112;
 				r0=0;
 				goto exit;
 			}
-			r2=MSG("ttmp index is not decimal\n");
-			if(r2) r0=r2;
+			MSG("ttmp index is not decimal\n");
 			goto exit;
 		}
   	}
@@ -345,8 +298,7 @@ static s8 f_scc(struct ctx *c,u8 f,struct i_f *i_f,u8 *val)
 
 		if(r1){
 			if(integer>64){
-				r2=MSG("integer above 64\n");
-				if(r2) r0=r2;
+				MSG("integer above 64\n");
 				goto exit;
 			}
 			i_f->val=(u16)integer+128;
@@ -362,8 +314,7 @@ static s8 f_scc(struct ctx *c,u8 f,struct i_f *i_f,u8 *val)
 
 		if(r1){
 			if(ninteger>64||ninteger==0){
-				r2=MSG("negative integer below 64 or is 0\n");
-				if(r2) r0=r2;
+				MSG("negative integer below 64 or is 0\n");
 				goto exit;
 			}
 			i_f->val=(u16)ninteger+193;
@@ -444,9 +395,7 @@ static s8 f_scc(struct ctx *c,u8 f,struct i_f *i_f,u8 *val)
 		}
   	}
  
-  	r2=MSG("has an unknown scc value\n");
-	if(r2) r0=r2;
-
+  	MSG("has an unknown scc value\n");
 exit:
 	return r0; 
 }
@@ -465,10 +414,7 @@ static s8 f_bool(struct ctx *c,u8 f,struct i_f *i_f,u8 *val)
 	else r0=CMINGCNASM_ERR;
 
 exit:
-	if(r0!=0){
-		s8 r1=MSG("has an invalid boolean value\n");
-		if(!r1) r0=r1;
-	}
+	if(r0!=0) MSG("has an invalid boolean value\n");
 	return r0;
 }
 
@@ -476,202 +422,168 @@ static s8 f_vgpr(struct ctx *c,u8 f,struct i_f *i_f,u8 *val)
 {
 	u8 vgpr_idx;
   	u64 val_sz;
-	s8 r0;
-	u8 r1;
+	u8 r;
 
   	val_sz=c->kw_e-val+1;
-	r0=0;
-	r1=dec2u8(&vgpr_idx,val+1,c->kw_e);
+	r=dec2u8(&vgpr_idx,val+1,c->kw_e);
 
 	if(val_sz<2||val[0]!='v'){
-		r0=MSG("has an unknown vgpr value\n");
-		if(!r0) r0=CMINGCNASM_ERR;
-		goto exit;
+		MSG("has an unknown vgpr value\n");
+		return CMINGCNASM_ERR;
 	}
 
-	if(!r1){
-		r0=MSG("has an invalid vgpr index\n");
-		if(!r0) r0=CMINGCNASM_ERR;
-		goto exit;
+	if(!r){
+		MSG("has an invalid vgpr index\n");
+		return CMINGCNASM_ERR;
 	}
 
 	i_f->val=(u16)vgpr_idx;
-
-exit:
-	return r0;
+	return 0;
 }
 
 static s8 f_sgpr_mod_4(struct ctx *c,u8 f,struct i_f *i_f,u8 *val)
 {
 	u8 sgpr_idx;
-	u8 r1;
-	s8 r0;
+	u8 r;
 	u64 val_sz;
 
-	r0=0;
 	val_sz=c->kw_e-val+1;
 
 	if(val_sz<2&&val[0]!='s'){
-		r0=MSG("has an unknown sgpr value\n");
-		if(!r0) r0=CMINGCNASM_ERR;
-		goto exit;
+		MSG("has an unknown sgpr value\n");
+		return CMINGCNASM_ERR;
 	}
 
-	r1=dec2u8(&sgpr_idx,val+1,c->kw_e);
-	if(!r1){
-		r0=MSG("has an invalid sgpr index\n");
-		if(!r0) r0=CMINGCNASM_ERR;
-		goto exit;
+	r=dec2u8(&sgpr_idx,val+1,c->kw_e);
+	if(!r){
+		MSG("has an invalid sgpr index\n");
+		return CMINGCNASM_ERR;
 	}
 
 	if(sgpr_idx>103){
-		r0=MSG("sgpr index above 103\n");
-		if(!r0) r0=CMINGCNASM_ERR;
-		goto exit;
+		MSG("sgpr index above 103\n");
+		return CMINGCNASM_ERR;
 	}
 
 	if(sgpr_idx%4){
-		r0=MSG("sgpr index in not 4 register aligned\n");
-		if(!r0) r0=CMINGCNASM_ERR;
-		goto exit;
+		MSG("sgpr index in not 4 register aligned\n");
+		return CMINGCNASM_ERR;
 	}
   
 	i_f->val=(u16)(sgpr_idx>>2);
-
-exit:
-	return r0;
+	return 0;
 }
 
 static s8 f_u16(struct ctx *c,u8 f,struct i_f *i_f,u8 *val)
 {
-	u8 r1;
-	s8 r0;
+	u8 r;
 	u64 val_sz;
 
-	r0=0;
 	val_sz=c->kw_e-val+1;
 
 	if(val_sz>=3){
 		if(val[0]=='0'&&val[1]=='b'){/*binary value*/
-			r1=bin2u16(&i_f->val,&val[2],c->kw_e);
-			if(!r1){
-				r0=MSG("has not a valid binary value\n");
-				if(!r0) r0=CMINGCNASM_ERR;
+			r=bin2u16(&i_f->val,&val[2],c->kw_e);
+			if(!r){
+				MSG("has not a valid binary value\n");
+				return CMINGCNASM_ERR;
 			}
-			goto exit;
+			return 0;
 		}
 
 		if(val[0]=='0'&&val[1]=='x'){/*hexadecimal value*/
-			r1=hex2u16(&i_f->val,&val[2],c->kw_e);
-			if(!r1){
-				r0=MSG("has not a valid hexadecimal value\n");
-				r0=CMINGCNASM_ERR;
+			r=hex2u16(&i_f->val,&val[2],c->kw_e);
+			if(!r){
+				MSG("has not a valid hexadecimal value\n");
+				return CMINGCNASM_ERR;
 			}
-			goto exit;
+			return 0;
 		}
 	}
 
 	/*decimal*/
-	r1=dec2u16(&i_f->val,val,c->kw_e);
-	if(!r1){
-		r0=MSG("has not a valid decimal value\n");
-		if(!r0) r0=CMINGCNASM_ERR;
+	r=dec2u16(&i_f->val,val,c->kw_e);
+	if(!r){
+		MSG("has not a valid decimal value\n");
+		return CMINGCNASM_ERR;
 	}
-
-exit:
-	return r0;
+	return 0;
 }
 
 static s8 f_tgt(struct ctx *c,u8 f,struct i_f *i_f,u8 *val)
 {
-	s8 r0;
 	u64 val_sz;
 
-	r0=CMINGCNASM_ERR;/*in error state by default*/
 	val_sz=c->kw_e-val+1;
 
 	if(val_sz==cs_n("mrt")+1){
 		if(!strncmp(val,"mrt",cs_n("mrt"))){
 			u8 mrt_idx;
-			u8 r1;
+			u8 r;
 
-			r1=dec2u8(&mrt_idx,val+cs_n("mrt"),c->kw_e);
+			r=dec2u8(&mrt_idx,val+cs_n("mrt"),c->kw_e);
 
-			if(r1){
+			if(r){
 				if(mrt_idx>=8){
-					r0=MSG("mrt index above 7\n");
-					if(!r0) r0=CMINGCNASM_ERR;
-					goto exit;
+					MSG("mrt index above 7\n");
+					return CMINGCNASM_ERR;
 				}
 				i_f->val=(u16)mrt_idx;
-				r0=0;
-				goto exit;
+				return 0;
 			}
-			r0=MSG("mrt index is not decimal\n");
-			if(!r0) r0=CMINGCNASM_ERR;
-			goto exit;
+			MSG("mrt index is not decimal\n");
+			return CMINGCNASM_ERR;
 		}
   	}
 	if(!strncmp(val,"mrtz",val_sz)){
 		i_f->val=8;
-		r0=0;
-		goto exit;
+		return 0;
 	}
 	if(!strncmp(val,"null",val_sz)){
 		i_f->val=9;
-		r0=0;
-		goto exit;
+		return 0;
 	}
 	if(val_sz==cs_n("pos")+1){
 		if(!strncmp(val,"pos",cs_n("pos"))){
 			u8 pos_idx;
-			u8 r1;
+			u8 r;
 
-			r1=dec2u8(&pos_idx,val+cs_n("pos"),c->kw_e);
+			r=dec2u8(&pos_idx,val+cs_n("pos"),c->kw_e);
 
-			if(r1){
+			if(r){
 				if(pos_idx>=4){
-					r0=MSG("pos index above 3\n");
-					if(!r0) r0=CMINGCNASM_ERR;
-					goto exit;
+					MSG("pos index above 3\n");
+					return CMINGCNASM_ERR;
 				}
 				i_f->val=(u16)pos_idx+12;
-				r0=0;
-				goto exit;
+				return 0;
 			}
-			r0=MSG("pos index is not decimal\n");
-			if(!r0) r0=CMINGCNASM_ERR;
-			goto exit;
+			MSG("pos index is not decimal\n");
+			return CMINGCNASM_ERR;
 		}
   	}
 	if(val_sz>=cs_n("param")+1){
 		if(!strncmp(val,"param",cs_n("param"))){
 			u8 param_idx;
-			u8 r1;
+			u8 r;
 
-			r1=dec2u8(&param_idx,val+cs_n("param"),c->kw_e);
+			r=dec2u8(&param_idx,val+cs_n("param"),c->kw_e);
 
-			if(r1){
+			if(r){
 				if(param_idx>=32){
-					r0=MSG("param index above 31\n");
-					if(!r0) r0=CMINGCNASM_ERR;
-					goto exit;
+					MSG("param index above 31\n");
+					return CMINGCNASM_ERR;
 				}
 				i_f->val=(u16)param_idx+32;
-				r0=0;
-				goto exit;
+				return 0;
 			}
-			r0=MSG("param index is not decimal\n");
-			if(!r0) r0=CMINGCNASM_ERR;
-			goto exit;
+			MSG("param index is not decimal\n");
+			return CMINGCNASM_ERR;
 		}
 	}
 
-	r0=MSG("has an unknown value\n");
-	if(!r0) r0=CMINGCNASM_ERR;
- 
-exit:
-	return r0;
+	MSG("has an unknown value\n");
+	return CMINGCNASM_ERR;
 }
 #undef MSG
 
@@ -737,7 +649,7 @@ fs_val_parser[F_EXP_CNT]=f_u16;
 fs_val_parser[F_LGKM_CNT]=f_u16;
 };
 
-#define MSG(x,...) msg(c->msgs,"error:source parse:%s:%d:pp(%d:%d):" x,\
+#define MSG(x,...) msg(c->msgs,"error:source parse:%s:%u:pp(%u:%u):" x,\
 c->src_pathname,c->src_l,c->l,c->p-c->l_s+1,##__VA_ARGS__)
 static s8 l_kw_f(struct ctx *c)
 {
@@ -745,23 +657,19 @@ static s8 l_kw_f(struct ctx *c)
 	u64 mnemonic_sz;
 	u8 *mnemonic_e;
 	u8 f;
-	s8 r;
-
-	r=0;
 
 	/*make room for a new field in the instruction*/
 	i_f=0;
 	loop{
 		if(i_f>=FS_MAX) break; 
-		if(c->is[c->is_last].fs[i_f].f==F_INVALID) break;
+		if(c->is[c->is_n-1].fs[i_f].f==F_INVALID) break;
 		++i_f;
 	}
 	if(i_f==FS_MAX){
-		r=MSG("no more room for field in instruction\n");
-		if(!r) r=CMINGCNASM_ERR;
-		goto exit;
+		MSG("no more room for field in instruction\n");
+		return CMINGCNASM_ERR;
 	}
-	if(i_f<(FS_MAX-1)) c->is[c->is_last].fs[i_f+1].f=F_INVALID;
+	if(i_f<(FS_MAX-1)) c->is[c->is_n-1].fs[i_f+1].f=F_INVALID;
 
 	/*locate value separator '='*/
 	mnemonic_e=c->p;
@@ -770,9 +678,8 @@ static s8 l_kw_f(struct ctx *c)
 		++mnemonic_e;
 	}
   	if(mnemonic_e>=c->kw_e){
-		r=MSG("field value separator not found or missing value\n");
-		if(!r) r=CMINGCNASM_ERR;
-		goto exit;
+		MSG("field value separator not found or missing value\n");
+		return CMINGCNASM_ERR;
 	}
 	mnemonic_e--;
 
@@ -785,23 +692,19 @@ static s8 l_kw_f(struct ctx *c)
 		++f;
 	}
   	if(f==F_INVALID){
-		r=MSG("field mnemonic not found\n");
-		if(!r) r=CMINGCNASM_ERR;
-		goto exit;
+		MSG("field mnemonic not found\n");
+		return CMINGCNASM_ERR;
 	}
 
-	c->is[c->is_last].fs[i_f].f=f;
+	c->is[c->is_n-1].fs[i_f].f=f;
 
 	/*parse value*/
 	if(!fs_val_parser[f]){
-		r=MSG("%s field hasn't a parser\n",fs_mnemonic[f]);
-		if(!r) r=CMINGCNASM_ERR;
-		goto exit;
+		MSG("%s field hasn't a parser\n",fs_mnemonic[f]);
+		return CMINGCNASM_ERR;
 	}
 	/*call the parser*/
-	r=fs_val_parser[f](c,f,&c->is[c->is_last].fs[i_f],mnemonic_e+1+1);
-exit:
-	return r;
+	return fs_val_parser[f](c,f,&c->is[c->is_n-1].fs[i_f],mnemonic_e+1+1);
 }
 #undef MSG
 
@@ -819,19 +722,16 @@ static void l_next_init(struct ctx *c)
 	if(c->l_e==c->src+c->src_sz) c->flgs|=LAST_LINE_PROCESSING;
 }
 
-#define MSG(x) msg(c->msgs,"error:source parse:pp(%d):line preprocessor" \
+#define MSG(x) msg(c->msgs,"error:source parse:pp(%u):line preprocessor" \
 " directive:" x,c->l)
 static s8 pp(struct ctx *c)
 {
 	u8 *p;
 	u8 *pp_kw_e;
 	u64 src_l;
-	u8 r1;
+	u8 r;
 	u8 *d;
 	u8 *d_e;
-	s8 r0;
-
-	r0=0;
 
 	/*skip white space(s) till the source file line number*/
 	p=c->p+1;/*skip '#'*/
@@ -841,9 +741,8 @@ static s8 pp(struct ctx *c)
 		++p;
 	}
 	if(p==c->l_e){
-		r0=MSG("missing source file line number\n");
-		if(!r0) r0=CMINGCNASM_ERR;
-		goto exit;
+		MSG("missing source file line number\n");
+		return CMINGCNASM_ERR;
 	}
 
 	/*get the source file line number keyword*/
@@ -854,22 +753,20 @@ static s8 pp(struct ctx *c)
   		++pp_kw_e;
 	}
 	if(pp_kw_e==c->l_e){
-		r0=MSG("missing source file pathname\n");
-		if(!r0) r0=CMINGCNASM_ERR;
-		goto exit;
+		MSG("missing source file pathname\n");
+		return CMINGCNASM_ERR;
 	}
 	pp_kw_e--;
  
 	/*convert the source file line number keyword */
-	r1=dec2u64(&src_l,p,pp_kw_e);
-	if(!r1){
-		r0=MSG("does not have a valide line number\n");
-		if(!r0) r0=CMINGCNASM_ERR;
-		goto exit;
+	r=dec2u64(&src_l,p,pp_kw_e);
+	if(!r){
+		MSG("does not have a valide line number\n");
+		return CMINGCNASM_ERR;
 	}
 	p=pp_kw_e+1;
 	/*store the source line number, swallowing itself*/
-	c->src_l=(s32)src_l-1;
+	c->src_l=src_l-1;
 
 	/*skip white space(s) till the source file pathname*/
 	loop{
@@ -879,9 +776,8 @@ static s8 pp(struct ctx *c)
 	}
 	/*the pathname must be enclosed within '"' chars*/
 	if(p==c->l_e||*p!='"'){
-		r0=MSG("missing a source file pathname or it's missing the starting \"\n");
-		if(!r0) r0=CMINGCNASM_ERR;
-		goto exit;
+		MSG("missing a source file pathname or it's missing the starting \"\n");
+		return CMINGCNASM_ERR;
 	}
 	++p;/*skip '"'*/
  
@@ -901,18 +797,16 @@ static s8 pp(struct ctx *c)
 		*d++=*p++; 
 	}
 	if(*p!='"'){
-		r0=MSG("unable to get source pathname\n");
-		if(!r0) r0=CMINGCNASM_ERR;
-		goto exit;
+		MSG("unable to get source pathname\n");
+		return CMINGCNASM_ERR;
 	}
 	*d=0;
-exit:  
-	return r0;
+	return 0;
 }
 #undef MSG
 
-s8 src_parse(u8 *src,s32 src_sz,u8 *src_pathname_default,struct i **is,
-					s32 *is_last,struct msgs_ctx *msgs)
+s8 src_parse(u8 *src,u64 src_sz,u8 *src_pathname_default,struct i **is,
+						u64 *is_n,struct msgs_ctx *msgs)
 {
 	struct ctx c;
 	s8 r;
@@ -922,7 +816,7 @@ s8 src_parse(u8 *src,s32 src_sz,u8 *src_pathname_default,struct i **is,
 	c.src=src;
 	c.src_sz=src_sz;
 	c.is=0;
-	c.is_last=-1;
+	c.is_n=0;
 	c.p=src;
 	c.flgs=0;
 	c.l=0;
@@ -987,14 +881,14 @@ s8 src_parse(u8 *src,s32 src_sz,u8 *src_pathname_default,struct i **is,
 		loop{
 			if(is_l_e(&c)) break;
 
-			l_kws_next(&c);//fetch next keyword
+			l_kws_next(&c);/*fetch next keyword*/
 
-			r=l_kw_f(&c);//that keyword must be a field
+			r=l_kw_f(&c);/*that keyword must be a field*/
 			if(r!=0) goto exit;
 
-			l_kw_consumed(&c);//skip the processed field
+			l_kw_consumed(&c);/*skip the processed field*/
 
-			l_blanks_skip(&c);//try to reach next field
+			l_blanks_skip(&c);/*try to reach next field*/
 		}
     		/*------------------------------------------------------------*/
 
@@ -1003,9 +897,9 @@ s8 src_parse(u8 *src,s32 src_sz,u8 *src_pathname_default,struct i **is,
 	}
 
 	*is=&c.is[0];
-	*is_last=c.is_last;
+	*is_n=c.is_n;
 
 exit:
-	if(r!=0) is_unmap(c.is,c.is_last,msgs);
+	if(r!=0&&c.is_n) munmap(&c.is[0],sizeof(struct i)*c.is_n);
 	return r;
 }

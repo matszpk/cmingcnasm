@@ -9,13 +9,10 @@ author:Sylvain BERTRAND <sylvain.bertrand AT gmail dot com>
 void cmingcndis_static_init(void);
 
 #define CMINGCNDIS_ERR   -1
-#define CMINGCN_MSGS_ERR -2/*something went wrong with the message system*/
 s8 cmingcndis_dis(u8 *m,/*(in)pointer on machine code*/
-                  s32 m_sz,/*(in)machine code size*/
-                  s32 src_sz_max,/*(in)maximum size for source code buffer*/
+                  u64 m_sz,/*(in)machine code size*/
                   u8 **src,/*(out)utf-8 source code buffer*/
-                  s32 *src_sz,/*(out)mmaped source code size buffer size*/
-                  s32 msgs_sz_max,/*(in)maximum size for message buffer*/
+                  u64 *src_sz,/*(out)mmaped source code size buffer size*/
                   u8 **msgs,/*(out)message buffer(disabled if 0)*/
-                  s32 *msgs_sz);/*(out)mmaped message buffer size*/
+                  u64 *msgs_sz);/*(out)mmaped message buffer size*/
 #endif

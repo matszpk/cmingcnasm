@@ -49,13 +49,12 @@ u8 *g_dprintf_buf;
 static u8 *src_pathname;
 static si src_fd;
 static u8 *src;
-static s32 src_sz;
+static u64 src_sz;
 
 static u8 *m_pathname;
 static si m_fd;
 static u8 *m;
-static s32 m_sz;
-static s32 m_sz_max;
+static u64 m_sz;
 
 static void args_parse(sl argc,u8 **argv_envp)
 {
@@ -126,8 +125,8 @@ static void src_mmap(void)
 		PERR("fatal(%ld):unable to stat source file\n",r);
 		exit(-1);
 	}
-	src_sz=(s32)src_stat.sz;
 
+	src_sz=(u64)src_stat.sz;/*broken signed off_t...*/
 	if(!src_sz){
 		PERR("WARNING:source file is empty, exiting with no error\n");
 		exit(-1);
@@ -144,7 +143,7 @@ static void src_mmap(void)
 static void m_save(void)
 {
 	sl r;
-	s32 bytes_written;
+	u64 bytes_written;
 
 	loop{
 		r=open(m_pathname,O_CREAT|O_TRUNC|O_WRONLY,S_IRUSR|S_IWUSR
@@ -167,7 +166,7 @@ static void m_save(void)
       			PERR("fatal(%ld):error writing machine file\n",r);
 			exit(-1);
 		}
-		bytes_written+=(s32)r;
+		bytes_written+=(u64)r;
 		if(bytes_written==m_sz) break;
 	}
 }
@@ -183,7 +182,6 @@ static void globals_init()
 	m_fd=-1;
 	m=0;
 	m_sz=0;
-	m_sz_max=1024*1024;/*default to 1MiB*/
 
 	cmingcnasm_static_init();
 }
@@ -192,7 +190,7 @@ static void globals_init()
 void ulinux_start(sl argc,u8 **argv_envp)
 {
 	u8 *msgs;
-  	s32 msgs_sz;
+  	u64 msgs_sz;
 	s8 r0;
 #ifndef QUIET 
 	static u8 dprintf_buf[DPRINTF_BUF_SZ];
@@ -205,10 +203,8 @@ void ulinux_start(sl argc,u8 **argv_envp)
 	r0=cmingcnasm_asm(	src,
 				src_sz,
 				src_pathname,
-				m_sz_max,
 				&m,
 				&m_sz,
-				10*1024,/*max 10kiB of messages*/
 				&msgs,
 				&msgs_sz);
 
@@ -222,12 +218,7 @@ void ulinux_start(sl argc,u8 **argv_envp)
 	if(r0==CMINGCNASM_ERR){
 		PERR("fatal(%d)\n",r0);
 		exit(-1);
-	}else if(r0==CMINGCN_MSGS_ERR){
-		PERR("fatal(%d):something went wrong with the message system\n",
-									r0);
-		exit(-1);
 	}
-
 	m_save();
 	exit(0);
 }
