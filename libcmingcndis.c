@@ -44,8 +44,12 @@ private
 #include "is.h"
 /*----------------------------------------------------------------------------*/
 
-#define LABEL_FMT "l%05u:"
-#define LABEL_TMPL "lXXXXX:"
+#define LABEL_I_FMT "l%05u:"
+#define LABEL_I_TMPL "lXXXXX:"
+#define LABEL_I_SZ_0 sizeof(LABEL_I_TMPL)
+#define LABEL_I_SZ (LABEL_I_SZ_0-1)
+#define LABEL_FMT "l%05u"
+#define LABEL_TMPL "lXXXXX"
 #define LABEL_SZ_0 sizeof(LABEL_TMPL)
 #define LABEL_SZ (LABEL_SZ_0-1)
 #define LABEL_OUT_OF_RANGE "**below machine code range**"
@@ -95,7 +99,7 @@ static void slab_grow(u8 **p,u64 old_sz,u64 sz_grow)
 	*p=(u8*)addr;
 }
 
-static void ils_mark(struct ctx *c,u8 *i,u8 *src)
+static struct il *ils_mark(struct ctx *c,u8 *i,u8 *src)
 {
 	struct il *il;
 	
@@ -107,6 +111,7 @@ static void ils_mark(struct ctx *c,u8 *i,u8 *src)
 	il->i=i;
 	il->src=src;
 	il->label=-1;/*no label*/
+	return il;
 }
 
 static void ils_unmap(struct ctx *c)
@@ -152,6 +157,18 @@ static struct label_pending *labels_pending_find(struct ctx *c,u8 *i)
 	return 0;
 }
 
+static void label_pending_insert(struct ctx *c,struct il *il)
+{
+	struct label_pending *label_pending;
+
+	label_pending=labels_pending_find(c,il->i);
+	if(!label_pending) return;
+
+	il->label=label_pending->label;
+	snprintf(il->src,LABEL_I_SZ,LABEL_I_FMT,il->label);
+	/*we don't cleanup the pending labels array*/
+}
+
 static void src_grow(struct ctx *c,u64 sz)
 {
 	slab_grow(c->src,*c->src_sz,sz);
@@ -161,17 +178,17 @@ static void src_grow(struct ctx *c,u64 sz)
 #define src_out(a,b,...) src_out_hidden(a,(u8*)b,##__VA_ARGS__)
 static void src_out_hidden(struct ctx *c,u8 *fmt,...)
 {
-	u64 len;
+	u64 sz;
 	va_list args;
 
 	va_start(args,fmt);
-	len=vsnprintf(0,0,fmt,args);
+	sz=vsnprintf(0,0,fmt,args);
 	va_end(args);
 
-	src_grow(c,len);
+	src_grow(c,sz);
 
 	va_start(args,fmt);
-	vsnprintf(&(*c->src)[*c->src_sz-len],len,fmt,args);
+	vsnprintf(&(*c->src)[*c->src_sz-sz],sz,fmt,args);
 	va_end(args);
 }
 
@@ -226,6 +243,7 @@ static void sopp_branch_below_inrange(struct ctx *c,u8 *target_i,
 	u64 il_idx;
 	struct il *il;
 
+	/*lookup for the target instruction location*/
 	il_idx=0;
 	il=0;
 	loop{
@@ -244,7 +262,7 @@ static void sopp_branch_below_inrange(struct ctx *c,u8 *target_i,
 
 	if(il->label==-1){/*instruction has no label,insert it in src code*/
 		il->label=c->next_label++;
-		snprintf(il->src,LABEL_SZ,LABEL_FMT,il->label);
+		snprintf(il->src,LABEL_I_SZ,LABEL_I_FMT,il->label);
 	}
 
 	snprintf(target_label,LABEL_SZ_0,LABEL_FMT,il->label);
@@ -286,6 +304,7 @@ static s8 sopp(struct ctx *c)
 	u32 i;
 	u8 op;
 	struct i_mnemonic_map *map;
+	struct il* il;
 
 	i=le322cpu(*(u32*)(c->i));
 	op=(i>>16)&0x7f;
@@ -293,7 +312,7 @@ static s8 sopp(struct ctx *c)
 	map=i_mnemonic_map_find(c,FMT_SOPP,(s16)op,"sopp");
 	if(!map) return CMINGCNDIS_ERR;
 
-	ils_mark(c,c->i,*c->src);
+	il=ils_mark(c,c->i,*c->src);
 
 	if(op==12){
 		/*the s_waitcnt sopp has 3 subfields instead af 1 simm16 field*/
@@ -322,6 +341,7 @@ static s8 sopp(struct ctx *c)
 						fs_mnemonic[F_SIMM16],simm16);
 		}
 	}
+	label_pending_insert(c,il);
 	return sizeof(i);
 }
 
@@ -374,6 +394,7 @@ static s8 sop1(struct ctx *c)
 	u8 sdst;
 	u8 sdst_str[SCC_STR_BUF_SZ];
 	struct i_mnemonic_map *map;
+	struct il *il;
 
 	i=le322cpu(*(u32*)(c->i));
 
@@ -387,7 +408,7 @@ static s8 sop1(struct ctx *c)
 	map=i_mnemonic_map_find(c,FMT_SOP1,(s16)op,"sop1");
 	if(!map) return CMINGCNDIS_ERR;
 
-	ils_mark(c,c->i,*c->src);
+	il=ils_mark(c,c->i,*c->src);
 
 	if(ssrc0==255){/*we have a literal constant*/
 		u32 literal_constant;
@@ -404,6 +425,7 @@ static s8 sop1(struct ctx *c)
 					fs_mnemonic[F_SDST],&sdst_str[0]);
 	}
 
+	label_pending_insert(c,il);
 	r=sizeof(i);
 	if(ssrc0==255) r+=sizeof(u32);/*don't forget the literal constant*/
 	return r;
@@ -417,6 +439,7 @@ static s8 vopc(struct ctx *c)
 	u16 src0;
 	u8 op;
 	u8 vsrc1;
+	struct il *il;
 
 	i=le322cpu(*(u32*)(c->i));
 	src0=i&0x1ff;
@@ -428,12 +451,13 @@ static s8 vopc(struct ctx *c)
 	map=i_mnemonic_map_find(c,FMT_VOPC,(s16)op,"vopc");
 	if(!map) return CMINGCNDIS_ERR;
 
-	ils_mark(c,c->i,*c->src);
+	il=ils_mark(c,c->i,*c->src);
 
 	src_out(c,"        0x%08x         %s %s=%s %s=v%u\n",
 					i,map->mnemonic,
 					fs_mnemonic[F_SRC0],&src0_str[0],
 					fs_mnemonic[F_VSRC1],vsrc1);
+	label_pending_insert(c,il);
 	return sizeof(i);
 }
 
@@ -445,6 +469,7 @@ static s8 vop1(struct ctx *c)
 	u16 src0;
 	u8 op;
 	u8 vdst;
+	struct il *il;
 
 	i=le322cpu(*(u32*)(c->i));
 	src0=i&0x1ff;
@@ -455,12 +480,13 @@ static s8 vop1(struct ctx *c)
 	map=i_mnemonic_map_find(c,FMT_VOP1,(s16)op,"vop1");
 	if(!map) return CMINGCNDIS_ERR;
 
-	ils_mark(c,c->i,*c->src);
+	il=ils_mark(c,c->i,*c->src);
 
 	src_out(c,"        0x%08x          %s %s=%s %s=v%u\n",
 						i,map->mnemonic,
 						fs_mnemonic[F_SRC0],src0_str,
 						fs_mnemonic[F_VDST],vdst);
+	label_pending_insert(c,il);
 	return sizeof(i);
 }
 
@@ -478,6 +504,7 @@ static s8 vop3b(struct ctx *c,u64 i,u16 op)
 	u8 omod;
 	u8 neg;
 	struct i_mnemonic_map *map;
+	struct il *il;
 
 	vdst=i&0xff;
 	sdst=(i>>8)&0x7f;
@@ -495,7 +522,7 @@ static s8 vop3b(struct ctx *c,u64 i,u16 op)
 	map=i_mnemonic_map_find(c,FMT_VOP3B,(s16)op,"vop3b");
 	if(!map) return CMINGCNDIS_ERR;
 
-	ils_mark(c,c->i,*c->src);
+	il=ils_mark(c,c->i,*c->src);
 
 	src_out(c,"        0x%016x %s %s=v%u %s=%s %s=%s %s=%s %s=%s %s=%u %s=src%u\n",
 					i,map->mnemonic,
@@ -506,6 +533,7 @@ static s8 vop3b(struct ctx *c,u64 i,u16 op)
 					fs_mnemonic[F_SRC2],&src2_str[0],
 					fs_mnemonic[F_OMOD],omod,
 					fs_mnemonic[F_NEG],neg);
+	label_pending_insert(c,il);
 	return sizeof(i);
 }
 
@@ -524,6 +552,7 @@ static s8 vop3a(struct ctx *c,u64 i,u16 op)
 	u8 omod;
 	u8 neg;
 	struct i_mnemonic_map *map;
+	struct il *il;
 
 	vdst=i&0xff;
 	abs=(i>>8)&0x7;
@@ -541,7 +570,7 @@ static s8 vop3a(struct ctx *c,u64 i,u16 op)
 	map=i_mnemonic_map_find(c,FMT_VOP3A,(s16)op,"vop3a");
 	if(!map) return CMINGCNDIS_ERR;
 
-	ils_mark(c,c->i,*c->src);
+	il=ils_mark(c,c->i,*c->src);
 
 	if(op<=255){/*in cmp ops, vdst is a sgprs or vcc*/
 		scc_str(&vdst_str[0],(u16)vdst);
@@ -565,6 +594,7 @@ static s8 vop3a(struct ctx *c,u64 i,u16 op)
 					fs_mnemonic[F_SRC2],&src2_str[0],
 					fs_mnemonic[F_OMOD],omod,
 					fs_mnemonic[F_NEG],neg);
+	label_pending_insert(c,il);
 	return sizeof(i);
 }
 
@@ -609,6 +639,7 @@ static s8 mubuf(struct ctx *c)
 	u8 srsrc;
 	u8 slc;
 	u8 tfe;
+	struct il* il;
 
 	i=le642cpu(*(u64*)(c->i));
 	offset=i&0xfff;
@@ -627,7 +658,7 @@ static s8 mubuf(struct ctx *c)
 	map=i_mnemonic_map_find(c,FMT_MUBUF,(s16)op,"mubuf");
 	if(!map) return CMINGCNDIS_ERR;
 
-	ils_mark(c,c->i,*c->src);
+	il=ils_mark(c,c->i,*c->src);
 
 	src_out(c,"        0x%016x %s %s=%u %s=%u %s=%u %s=%u %s=%u %s=%u %s=v%u %s=v%u %s=s%u %s=%u %s=%u\n",
 						i,map->mnemonic,
@@ -642,6 +673,7 @@ static s8 mubuf(struct ctx *c)
 						fs_mnemonic[F_SRSRC],srsrc<<2,
 						fs_mnemonic[F_SLC],slc,
 						fs_mnemonic[F_TFE],tfe);
+	label_pending_insert(c,il);
 	return sizeof(i);
 }
 
@@ -671,6 +703,7 @@ static s8 export(struct ctx *c)
 	u64 i;
 	u8 en;
 	u8 tgt;
+	struct il *il;
 
 	i=le642cpu(*(u64*)(c->i));
 	en=i&0xf;
@@ -698,7 +731,7 @@ static s8 export(struct ctx *c)
 	map=i_mnemonic_map_find(c,FMT_EXP,0,"exp");
 	if(!map) return CMINGCNDIS_ERR;
 
-	ils_mark(c,c->i,*c->src);
+	il=ils_mark(c,c->i,*c->src);
 
 	src_out(c,"        0x%016x %s %s=0x%x %s=%s %s=%u %s=%u %s=%u %s=v%u %s=v%u %s=v%u %s=v%u\n",
 						i,map->mnemonic,
@@ -711,6 +744,7 @@ static s8 export(struct ctx *c)
 						fs_mnemonic[F_VSRC1],vsrc1,
 						fs_mnemonic[F_VSRC2],vsrc2,
 						fs_mnemonic[F_VSRC3],vsrc3);
+	label_pending_insert(c,il);
 	return sizeof(i);
 }
 
@@ -739,6 +773,7 @@ static s8 sop2(struct ctx *c)
 	u8 op;
 	struct i_mnemonic_map *map;
 	u8 literal_offset;
+	struct il *il;
 
 	i=le322cpu(*(u32*)(c->i));
 
@@ -754,7 +789,7 @@ static s8 sop2(struct ctx *c)
 	map=i_mnemonic_map_find(c,FMT_SOP2,(s16)op,"sop2");
 	if(!map) return CMINGCNDIS_ERR;
 
-	ils_mark(c,c->i,*c->src);
+	il=ils_mark(c,c->i,*c->src);
 
 	src_out(c,"        0x%08x         %s %s=%s %s=%s %s=%s",
 					i,map->mnemonic,
@@ -777,6 +812,7 @@ static s8 sop2(struct ctx *c)
 	}
 	src_out(c,"\n");
 	
+	label_pending_insert(c,il);
 	r=sizeof(i);
 	if(ssrc0==255) r+=sizeof(u32);
 	if(ssrc1==255) r+=sizeof(u32);
@@ -792,6 +828,7 @@ static s8 vop2(struct ctx *c)
 	u8 vsrc1;
 	u8 vdst;
 	u8 op;
+	struct il *il;
 
 	i=le322cpu(*(u32*)(c->i));
 	src0=i&0x1ff;
@@ -804,13 +841,14 @@ static s8 vop2(struct ctx *c)
 	map=i_mnemonic_map_find(c,FMT_VOP2,(s16)op,"vop2");
 	if(!map) return CMINGCNDIS_ERR;
 
-	ils_mark(c,c->i,*c->src);
+	il=ils_mark(c,c->i,*c->src);
 
 	src_out(c,"        0x%016x %s %s=%s %s=v%u %s=v%u\n",
 						i,map->mnemonic,
 						fs_mnemonic[F_SRC0],src0_str,
 						fs_mnemonic[F_VSRC1],vsrc1,
 						fs_mnemonic[F_VDST],vdst);
+	label_pending_insert(c,il);
 	return sizeof(i);
 }
 
