@@ -16,15 +16,15 @@ return compiler boolean:success or failed
 */
 ulinux_u8 ulinux_bin2u16_blk(ulinux_u16 *dest,ulinux_u8 *start,ulinux_u8 *end)
 {/*do *not* trust content*/
-  if((ulinux_u64)(end-start)>=sizeof("1111111111111111")-1) return 0;
-  *dest=0;
-  ulinux_loop{
-    if(start>end) break;
+	if((ulinux_u64)(end-start)>=sizeof("1111111111111111")-1) return 0;
+	*dest=0;
+	ulinux_loop{
+		if(start>end) break;
 
-    if(*end!='0'&&*end!='1') return 0;
-    *dest=(*dest<<1)|(*start-'0');
-    ++start;
-  }
-  /*no overflow*/
-  return 1;
+		if(*end!='0'&&*end!='1') return 0;
+		*dest=(*dest<<1)|(*start-'0');
+		++start;
+	}
+	/*no overflow*/
+	return 1;
 }
