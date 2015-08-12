@@ -57,7 +57,7 @@ private
 
 struct il{
 	u8 *i;		/*location in machine code*/
-	u8 *src;	/*location in src code*/
+	u64 src;	/*location byte idx in src code*/
 	s16 label;	/*>=0 means there is a label*/
 };
 
@@ -99,7 +99,7 @@ static void slab_grow(u8 **p,u64 old_sz,u64 sz_grow)
 	*p=(u8*)addr;
 }
 
-static struct il *ils_mark(struct ctx *c,u8 *i,u8 *src)
+static struct il *ils_mark(struct ctx *c,u8 *i,u64 src)
 {
 	struct il *il;
 	
@@ -165,7 +165,7 @@ static void label_pending_insert(struct ctx *c,struct il *il)
 	if(!label_pending) return;
 
 	il->label=label_pending->label;
-	snprintf(il->src,LABEL_I_SZ,LABEL_I_FMT,il->label);
+	snprintf(&(*c->src)[il->src],LABEL_I_SZ,LABEL_I_FMT,il->label);
 	/*we don't cleanup the pending labels array*/
 }
 
@@ -262,7 +262,7 @@ static void sopp_branch_below_inrange(struct ctx *c,u8 *target_i,
 
 	if(il->label==-1){/*instruction has no label,insert it in src code*/
 		il->label=c->next_label++;
-		snprintf(il->src,LABEL_I_SZ,LABEL_I_FMT,il->label);
+		snprintf(&(*c->src)[il->src],LABEL_I_SZ,LABEL_I_FMT,il->label);
 	}
 
 	snprintf(target_label,LABEL_SZ_0,LABEL_FMT,il->label);
@@ -312,7 +312,7 @@ static s8 sopp(struct ctx *c)
 	map=i_mnemonic_map_find(c,FMT_SOPP,(s16)op,"sopp");
 	if(!map) return CMINGCNDIS_ERR;
 
-	il=ils_mark(c,c->i,*c->src);
+	il=ils_mark(c,c->i,*c->src_sz);
 
 	if(op==12){
 		/*the s_waitcnt sopp has 3 subfields instead af 1 simm16 field*/
@@ -408,7 +408,7 @@ static s8 sop1(struct ctx *c)
 	map=i_mnemonic_map_find(c,FMT_SOP1,(s16)op,"sop1");
 	if(!map) return CMINGCNDIS_ERR;
 
-	il=ils_mark(c,c->i,*c->src);
+	il=ils_mark(c,c->i,*c->src_sz);
 
 	if(ssrc0==255){/*we have a literal constant*/
 		u32 literal_constant;
@@ -451,7 +451,7 @@ static s8 vopc(struct ctx *c)
 	map=i_mnemonic_map_find(c,FMT_VOPC,(s16)op,"vopc");
 	if(!map) return CMINGCNDIS_ERR;
 
-	il=ils_mark(c,c->i,*c->src);
+	il=ils_mark(c,c->i,*c->src_sz);
 
 	src_out(c,"        0x%08x         %s %s=%s %s=v%u\n",
 					i,map->mnemonic,
@@ -480,7 +480,7 @@ static s8 vop1(struct ctx *c)
 	map=i_mnemonic_map_find(c,FMT_VOP1,(s16)op,"vop1");
 	if(!map) return CMINGCNDIS_ERR;
 
-	il=ils_mark(c,c->i,*c->src);
+	il=ils_mark(c,c->i,*c->src_sz);
 
 	src_out(c,"        0x%08x          %s %s=%s %s=v%u\n",
 						i,map->mnemonic,
@@ -522,7 +522,7 @@ static s8 vop3b(struct ctx *c,u64 i,u16 op)
 	map=i_mnemonic_map_find(c,FMT_VOP3B,(s16)op,"vop3b");
 	if(!map) return CMINGCNDIS_ERR;
 
-	il=ils_mark(c,c->i,*c->src);
+	il=ils_mark(c,c->i,*c->src_sz);
 
 	src_out(c,"        0x%016x %s %s=v%u %s=%s %s=%s %s=%s %s=%s %s=%u %s=src%u\n",
 					i,map->mnemonic,
@@ -570,7 +570,7 @@ static s8 vop3a(struct ctx *c,u64 i,u16 op)
 	map=i_mnemonic_map_find(c,FMT_VOP3A,(s16)op,"vop3a");
 	if(!map) return CMINGCNDIS_ERR;
 
-	il=ils_mark(c,c->i,*c->src);
+	il=ils_mark(c,c->i,*c->src_sz);
 
 	if(op<=255){/*in cmp ops, vdst is a sgprs or vcc*/
 		scc_str(&vdst_str[0],(u16)vdst);
@@ -658,7 +658,7 @@ static s8 mubuf(struct ctx *c)
 	map=i_mnemonic_map_find(c,FMT_MUBUF,(s16)op,"mubuf");
 	if(!map) return CMINGCNDIS_ERR;
 
-	il=ils_mark(c,c->i,*c->src);
+	il=ils_mark(c,c->i,*c->src_sz);
 
 	src_out(c,"        0x%016x %s %s=%u %s=%u %s=%u %s=%u %s=%u %s=%u %s=v%u %s=v%u %s=s%u %s=%u %s=%u\n",
 						i,map->mnemonic,
@@ -731,7 +731,7 @@ static s8 export(struct ctx *c)
 	map=i_mnemonic_map_find(c,FMT_EXP,0,"exp");
 	if(!map) return CMINGCNDIS_ERR;
 
-	il=ils_mark(c,c->i,*c->src);
+	il=ils_mark(c,c->i,*c->src_sz);
 
 	src_out(c,"        0x%016x %s %s=0x%x %s=%s %s=%u %s=%u %s=%u %s=v%u %s=v%u %s=v%u %s=v%u\n",
 						i,map->mnemonic,
@@ -789,7 +789,7 @@ static s8 sop2(struct ctx *c)
 	map=i_mnemonic_map_find(c,FMT_SOP2,(s16)op,"sop2");
 	if(!map) return CMINGCNDIS_ERR;
 
-	il=ils_mark(c,c->i,*c->src);
+	il=ils_mark(c,c->i,*c->src_sz);
 
 	src_out(c,"        0x%08x         %s %s=%s %s=%s %s=%s",
 					i,map->mnemonic,
@@ -841,7 +841,7 @@ static s8 vop2(struct ctx *c)
 	map=i_mnemonic_map_find(c,FMT_VOP2,(s16)op,"vop2");
 	if(!map) return CMINGCNDIS_ERR;
 
-	il=ils_mark(c,c->i,*c->src);
+	il=ils_mark(c,c->i,*c->src_sz);
 
 	src_out(c,"        0x%016x %s %s=%s %s=v%u %s=v%u\n",
 						i,map->mnemonic,
