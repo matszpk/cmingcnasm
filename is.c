@@ -698,7 +698,7 @@ I_MNEMONIC_MAPS_ENTRY(647,"ds_max_src2_u64",BIT(FMT_DS),200);
 I_MNEMONIC_MAPS_ENTRY(648,"ds_and_src2_b64",BIT(FMT_DS),201);
 I_MNEMONIC_MAPS_ENTRY(649,"ds_or_src2_b64",BIT(FMT_DS),202);
 I_MNEMONIC_MAPS_ENTRY(650,"ds_xor_src2_b64",BIT(FMT_DS),203);
-I_MNEMONIC_MAPS_ENTRY(651,"ds_write_src2_b64",BIT(FMT_DS),204);
+I_MNEMONIC_MAPS_ENTRY(651,"ds_write_src2_b64",BIT(FMT_DS),205);
 I_MNEMONIC_MAPS_ENTRY(652,"ds_min_src2_f64",BIT(FMT_DS),210);
 I_MNEMONIC_MAPS_ENTRY(653,"ds_max_src2_f64",BIT(FMT_DS),211);
 /*----------------------------------------------------------------------------*/
